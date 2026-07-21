@@ -1,0 +1,9 @@
+# Script runtime state and backups
+.tmp/
+
+# Local editor state
+.vscode/
+
+# PowerShell analysis and test artifacts
+*.clixml
+*.tmp
