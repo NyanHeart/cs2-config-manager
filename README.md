@@ -34,30 +34,30 @@ Both scripts store runtime state relative to their own location in `.tmp`. Accou
 List available accounts with the English script:
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 account list
+Cs2Config.en-US.ps1 account list
 ```
 
 Set an account alias:
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 `
+Cs2Config.en-US.ps1 `
   account alias set -Account 123456789 -Name primary
 ```
 
 Back up an account configuration:
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 `
+Cs2Config.en-US.ps1 `
   backup -Account primary -IncludeCustomCfg
 ```
 
 Preview and then copy common settings from one account to another:
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 `
+Cs2Config.en-US.ps1 `
   apply -Source primary -Target secondary -WhatIf
 
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 `
+Cs2Config.en-US.ps1 `
   apply -Source primary -Target secondary
 ```
 
@@ -66,7 +66,7 @@ pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 `
 External `autoexec.cfg` files commonly contain bindings, sensitivity, crosshair, and personal settings. Use `apply-preset` to merge only the categories you choose:
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 `
+Cs2Config.en-US.ps1 `
   apply-preset `
   -Account primary `
   -PresetPath C:\Users\you\Downloads\autoexec.cfg `
@@ -84,13 +84,13 @@ Practice cfg files are not account-level files. When you run `exec <name>`, CS2 
 
 ```powershell
 # Import an existing cfg as a template
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 `
+Cs2Config.en-US.ps1 `
   practice template import `
   -Name practice `
   -SourcePath C:\Users\you\Downloads\practice.cfg
 
 # Deploy it to the CS2 game directory
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 `
+Cs2Config.en-US.ps1 `
   practice apply -Name practice
 ```
 
@@ -115,15 +115,15 @@ The following are excluded from account copying by default:
 List backups and preview a restore before making a change:
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 backup list -Account primary
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.en-US.ps1 restore -Account primary -Backup <backup-directory-name> -WhatIf
+Cs2Config.en-US.ps1 backup list -Account primary
+Cs2Config.en-US.ps1 restore -Account primary -Backup <backup-directory-name> -WhatIf
 ```
 
 ## Help
 
 ```powershell
-Get-Help .\Cs2Config.en-US.ps1 -Full
-Get-Help .\Cs2Config.zh-CN.ps1 -Examples
+Get-Help Cs2Config.en-US.ps1 -Full
+Get-Help Cs2Config.zh-CN.ps1 -Examples
 ```
 
 ## License

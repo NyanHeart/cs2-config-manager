@@ -30,45 +30,45 @@
     练习服模板名称，不含 .cfg 扩展名。游戏内使用 exec <名称> 执行。
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 account list
+    Cs2Config.ps1 account list
 
     列出当前电脑中检测到的、包含 CS2 配置的 Steam 账号。
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 account alias set -Account 123456789 -Name primary
+    Cs2Config.ps1 account alias set -Account 123456789 -Name primary
 
     为账号设置别名。之后可在命令中用 primary 代替数字 Steam ID。
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 backup -Account primary -IncludeCustomCfg
+    Cs2Config.ps1 backup -Account primary -IncludeCustomCfg
 
     备份账号的通用 CS2 配置和自定义 .cfg 文件到脚本相对 .tmp\backups 目录。
     trustedlaunch.cfg、Steam Cloud 状态和库存文件会被排除。
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 apply -Source primary -Target secondary -WhatIf
+    Cs2Config.ps1 apply -Source primary -Target secondary -WhatIf
 
     预览从 primary 复制到 secondary 的账号配置变更，不写入任何文件。
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 apply -Source primary -Target secondary
+    Cs2Config.ps1 apply -Source primary -Target secondary
 
     实际复制通用账号配置。目标文件会先备份，并在复制后进行 SHA-256 校验。
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 apply-preset -Account primary -PresetPath C:\Users\<your-user>\Downloads\autoexec.cfg -Sections Viewmodel,Hud,Radar,Audio -WhatIf
+    Cs2Config.ps1 apply-preset -Account primary -PresetPath C:\Users\<your-user>\Downloads\autoexec.cfg -Sections Viewmodel,Hud,Radar,Audio -WhatIf
 
     预览从外来 cfg 中按分类提取设置并合并到指定账号。键位、准星、灵敏度等未选分类不会修改。
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 practice template import -Name practice -SourcePath C:\Users\<your-user>\Downloads\practice.cfg
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 practice apply -Name practice
+    Cs2Config.ps1 practice template import -Name practice -SourcePath C:\Users\<your-user>\Downloads\practice.cfg
+    Cs2Config.ps1 practice apply -Name practice
 
     导入练习服模板并部署到 CS2 游戏目录。进入本地服务器后，在控制台执行 exec practice。
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 backup list -Account primary
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 restore -Account primary -Backup <备份目录名> -WhatIf
+    Cs2Config.ps1 backup list -Account primary
+    Cs2Config.ps1 restore -Account primary -Backup <备份目录名> -WhatIf
 
     列出账号备份，并预览恢复指定备份。
 

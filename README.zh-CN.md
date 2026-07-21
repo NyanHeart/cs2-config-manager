@@ -34,30 +34,30 @@
 使用中文版本列出可用账号：
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 account list
+Cs2Config.zh-CN.ps1 account list
 ```
 
 为账号建立别名：
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
+Cs2Config.zh-CN.ps1 `
   account alias set -Account 123456789 -Name primary
 ```
 
 备份账号配置：
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
+Cs2Config.zh-CN.ps1 `
   backup -Account primary -IncludeCustomCfg
 ```
 
 预览并复制一个账号的通用配置到另一个账号：
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
+Cs2Config.zh-CN.ps1 `
   apply -Source primary -Target secondary -WhatIf
 
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
+Cs2Config.zh-CN.ps1 `
   apply -Source primary -Target secondary
 ```
 
@@ -66,7 +66,7 @@ pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
 外来 `autoexec.cfg` 往往同时包含键位、灵敏度、准星和其他个人信息。使用 `apply-preset` 只合并选定分类：
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
+Cs2Config.zh-CN.ps1 `
   apply-preset `
   -Account primary `
   -PresetPath C:\Users\you\Downloads\autoexec.cfg `
@@ -84,13 +84,13 @@ pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
 
 ```powershell
 # 从已有 cfg 导入模板
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
+Cs2Config.zh-CN.ps1 `
   practice template import `
   -Name practice `
   -SourcePath C:\Users\you\Downloads\practice.cfg
 
 # 部署到 CS2 游戏目录
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 `
+Cs2Config.zh-CN.ps1 `
   practice apply -Name practice
 ```
 
@@ -115,15 +115,15 @@ exec practice
 恢复前可先查看备份并使用 `-WhatIf`：
 
 ```powershell
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 backup list -Account primary
-pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.zh-CN.ps1 restore -Account primary -Backup <备份目录名> -WhatIf
+Cs2Config.zh-CN.ps1 backup list -Account primary
+Cs2Config.zh-CN.ps1 restore -Account primary -Backup <备份目录名> -WhatIf
 ```
 
 ## 帮助
 
 ```powershell
-Get-Help .\Cs2Config.zh-CN.ps1 -Full
-Get-Help .\Cs2Config.en-US.ps1 -Examples
+Get-Help Cs2Config.zh-CN.ps1 -Full
+Get-Help Cs2Config.en-US.ps1 -Examples
 ```
 
 ## 许可证

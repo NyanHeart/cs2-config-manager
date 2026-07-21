@@ -30,45 +30,45 @@
     Practice template name without the .cfg extension. Run it in-game with exec <name>.
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 account list
+    Cs2Config.ps1 account list
 
     Lists Steam accounts with detected CS2 configurations on this computer.
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 account alias set -Account 123456789 -Name primary
+    Cs2Config.ps1 account alias set -Account 123456789 -Name primary
 
     Sets an account alias. You can then use primary instead of a numeric Steam ID.
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 backup -Account primary -IncludeCustomCfg
+    Cs2Config.ps1 backup -Account primary -IncludeCustomCfg
 
     Backs up common account settings and custom .cfg files to the script-relative .tmp\backups directory.
     trustedlaunch.cfg, Steam Cloud state, and inventory files are excluded.
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 apply -Source primary -Target secondary -WhatIf
+    Cs2Config.ps1 apply -Source primary -Target secondary -WhatIf
 
     Previews account configuration changes from primary to secondary without writing files.
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 apply -Source primary -Target secondary
+    Cs2Config.ps1 apply -Source primary -Target secondary
 
     Copies common account settings. Target files are backed up first and verified with SHA-256 after copying.
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 apply-preset -Account primary -PresetPath C:\Users\<your-user>\Downloads\autoexec.cfg -Sections Viewmodel,Hud,Radar,Audio -WhatIf
+    Cs2Config.ps1 apply-preset -Account primary -PresetPath C:\Users\<your-user>\Downloads\autoexec.cfg -Sections Viewmodel,Hud,Radar,Audio -WhatIf
 
     Previews category-based settings extracted from an external cfg. Bindings, crosshair, sensitivity, and unselected categories remain unchanged.
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 practice template import -Name practice -SourcePath C:\Users\<your-user>\Downloads\practice.cfg
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 practice apply -Name practice
+    Cs2Config.ps1 practice template import -Name practice -SourcePath C:\Users\<your-user>\Downloads\practice.cfg
+    Cs2Config.ps1 practice apply -Name practice
 
     Imports a practice template and deploys it to the CS2 game directory. On a local server, run exec practice in the console.
 
 .EXAMPLE
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 backup list -Account primary
-    pwsh.exe -NoLogo -NoProfile -File .\Cs2Config.ps1 restore -Account primary -Backup <backup-directory-name> -WhatIf
+    Cs2Config.ps1 backup list -Account primary
+    Cs2Config.ps1 restore -Account primary -Backup <backup-directory-name> -WhatIf
 
     Lists account backups and previews restoration of a selected backup.
 
