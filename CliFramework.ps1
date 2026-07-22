@@ -75,7 +75,8 @@ function Convert-CliLongOptions {
         [string[]]$Tokens,
         [hashtable]$ValueOptions = @{},
         [hashtable]$SwitchOptions = @{},
-        [scriptblock]$MissingValueMessage = { param($Option) "Option '$Option' requires a value." }
+        [scriptblock]$MissingValueMessage = { param($Option) "Option '$Option' requires a value." },
+        [scriptblock]$UnknownOptionMessage = { param($Option) "Unknown option '$Option'." }
     )
 
     $remaining = [System.Collections.Generic.List[string]]::new()
@@ -83,7 +84,17 @@ function Convert-CliLongOptions {
     $switches = @{}
     for ($index = 0; $index -lt $Tokens.Count; $index++) {
         $token = $Tokens[$index]
-        if ([string]::IsNullOrWhiteSpace($token) -or -not $token.StartsWith('--')) {
+        if ([string]::IsNullOrWhiteSpace($token)) {
+            $remaining.Add($token)
+            continue
+        }
+
+        if ($token -eq '--help') {
+            $remaining.Add($token)
+            continue
+        }
+        if (-not $token.StartsWith('--')) {
+            if ($token.StartsWith('-')) { throw (& $UnknownOptionMessage $token) }
             $remaining.Add($token)
             continue
         }
@@ -114,7 +125,7 @@ function Convert-CliLongOptions {
             continue
         }
 
-        $remaining.Add($token)
+        throw (& $UnknownOptionMessage $token)
     }
 
     [pscustomobject]@{

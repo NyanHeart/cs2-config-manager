@@ -140,7 +140,7 @@ $CliLongValueOptions = @{
 }
 $CliLongSwitchOptions = @{ includecustomcfg = 'IncludeCustomCfg'; 'include-custom-cfg' = 'IncludeCustomCfg'; force = 'Force'; whatif = 'WhatIf'; 'what-if' = 'WhatIf' }
 $rawCliTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
-$longOptionResult = Convert-CliLongOptions -Tokens $rawCliTokens -ValueOptions $CliLongValueOptions -SwitchOptions $CliLongSwitchOptions -MissingValueMessage { param($Option) "选项 '$Option' 需要提供值。" }
+$longOptionResult = Convert-CliLongOptions -Tokens $rawCliTokens -ValueOptions $CliLongValueOptions -SwitchOptions $CliLongSwitchOptions -MissingValueMessage { param($Option) "选项 '$Option' 需要提供值。" } -UnknownOptionMessage { param($Option) "未知选项: $Option" }
 foreach ($option in $longOptionResult.Values.GetEnumerator()) {
     if (Get-Variable -Name $option.Key -ValueOnly) { throw "选项 '$($option.Key)' 被重复提供。" }
     Set-Variable -Name $option.Key -Value $option.Value
