@@ -121,6 +121,15 @@ Cs2Config.en-US.ps1 restore -Account primary -Backup <backup-directory-name> -Wh
 
 ## Help
 
+Run either script without arguments, or append `--help`, for a concise command overview:
+
+```powershell
+Cs2Config.en-US.ps1
+Cs2Config.en-US.ps1 --help
+```
+
+Use PowerShell help for the full reference and examples:
+
 ```powershell
 Get-Help Cs2Config.en-US.ps1 -Full
 Get-Help Cs2Config.zh-CN.ps1 -Examples

@@ -5,13 +5,14 @@
 .DESCRIPTION
     管理账号级 CS2 设置与本机共享的练习服配置。
     所有运行数据均存放在相对于脚本的 .tmp 目录。
+    不提供命令，或使用 help、--help、-h、/? 时显示命令总览。
 
     账号级配置位于 Steam userdata 目录，使用账号别名或 Steam 数字 ID 操作。
     练习服配置位于 CS2 游戏安装目录，所有本机账号共享。
     所有写入命令会在 CS2 运行时拒绝执行，并支持 -WhatIf 预览。
 
 .PARAMETER Command
-    要执行的顶级命令：account、backup、apply、apply-preset、restore 或 practice。
+    可选的顶级命令：account、backup、apply、apply-preset、restore 或 practice。
 
 .PARAMETER Account
     账号别名或 Steam 数字 ID。可通过 account list 查看可用账号。
@@ -78,8 +79,7 @@
 #>
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
-    [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('account', 'backup', 'apply', 'apply-preset', 'restore', 'practice')]
+    [Parameter(Position = 0)]
     [string]$Command,
 
     [Parameter(Position = 1)]
@@ -803,7 +803,45 @@ function Show-BackupList {
     $rows | Format-Table -AutoSize
 }
 
+function Show-Usage {
+    Write-Host @'
+CS2 配置管理工具
+
+用法:
+  Cs2Config.zh-CN.ps1 <命令> [子命令] [参数]
+
+命令:
+  account        列出 CS2 账号，或管理账号别名
+  backup         创建或列出账号配置备份
+  apply          将一个账号的配置复制到另一个账号
+  apply-preset   对指定账号应用 cfg 预设中的部分设置
+  restore        从备份恢复账号配置
+  practice       导入、更新或部署本地练习服配置
+
+常用示例:
+  Cs2Config.zh-CN.ps1 account list
+  Cs2Config.zh-CN.ps1 backup -Account main
+  Cs2Config.zh-CN.ps1 apply -Source main -Target alt
+  Cs2Config.zh-CN.ps1 practice list
+
+帮助:
+  Cs2Config.zh-CN.ps1 help
+  Cs2Config.zh-CN.ps1 --help
+  Get-Help Cs2Config.zh-CN.ps1 -Examples
+'@
+}
+
 try {
+    if ([string]::IsNullOrWhiteSpace($Command) -or $Command -in @('help', '--help', '-h', '/?')) {
+        Show-Usage
+        return
+    }
+
+    $validCommands = @('account', 'backup', 'apply', 'apply-preset', 'restore', 'practice')
+    if ($Command -notin $validCommands) {
+        throw "不支持的命令 '$Command'。运行 'Cs2Config.zh-CN.ps1 help' 查看可用命令。"
+    }
+
     switch ($Command) {
         'account' {
             switch ($Action) {

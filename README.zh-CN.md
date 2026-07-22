@@ -121,6 +121,15 @@ Cs2Config.zh-CN.ps1 restore -Account primary -Backup <备份目录名> -WhatIf
 
 ## 帮助
 
+不带参数运行脚本，或追加 `--help`，即可查看简洁的命令总览：
+
+```powershell
+Cs2Config.zh-CN.ps1
+Cs2Config.zh-CN.ps1 --help
+```
+
+完整参数说明与示例可使用 PowerShell 帮助：
+
 ```powershell
 Get-Help Cs2Config.zh-CN.ps1 -Full
 Get-Help Cs2Config.en-US.ps1 -Examples

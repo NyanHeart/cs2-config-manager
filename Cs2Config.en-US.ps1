@@ -5,13 +5,14 @@
 .DESCRIPTION
     Manages account-level CS2 settings and shared local practice configurations.
     All runtime data is stored in a .tmp directory relative to this script.
+    Omitting the command, or using help, --help, -h, or /?, prints a command overview.
 
     Account settings live in the Steam userdata directory and can be addressed by alias or numeric Steam ID.
     Practice configurations live in the CS2 installation directory and are shared by all local accounts.
     All write operations refuse to run while CS2 is running and support -WhatIf previews.
 
 .PARAMETER Command
-    The top-level command to run: account, backup, apply, apply-preset, restore, or practice.
+    Optional top-level command: account, backup, apply, apply-preset, restore, or practice.
 
 .PARAMETER Account
     An account alias or numeric Steam ID. Use account list to view available accounts.
@@ -78,8 +79,7 @@
 #>
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
-    [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('account', 'backup', 'apply', 'apply-preset', 'restore', 'practice')]
+    [Parameter(Position = 0)]
     [string]$Command,
 
     [Parameter(Position = 1)]
@@ -803,7 +803,45 @@ function Show-BackupList {
     $rows | Format-Table -AutoSize
 }
 
+function Show-Usage {
+    Write-Host @'
+CS2 Config Manager
+
+Usage:
+  Cs2Config.en-US.ps1 <command> [subcommand] [parameters]
+
+Commands:
+  account        List CS2 accounts or manage account aliases
+  backup         Create or list account configuration backups
+  apply          Copy configuration from one account to another
+  apply-preset   Apply selected settings from a cfg preset to an account
+  restore        Restore account configuration from a backup
+  practice       Import, update, or deploy local practice configuration
+
+Common examples:
+  Cs2Config.en-US.ps1 account list
+  Cs2Config.en-US.ps1 backup -Account main
+  Cs2Config.en-US.ps1 apply -Source main -Target alt
+  Cs2Config.en-US.ps1 practice list
+
+Help:
+  Cs2Config.en-US.ps1 help
+  Cs2Config.en-US.ps1 --help
+  Get-Help Cs2Config.en-US.ps1 -Examples
+'@
+}
+
 try {
+    if ([string]::IsNullOrWhiteSpace($Command) -or $Command -in @('help', '--help', '-h', '/?')) {
+        Show-Usage
+        return
+    }
+
+    $validCommands = @('account', 'backup', 'apply', 'apply-preset', 'restore', 'practice')
+    if ($Command -notin $validCommands) {
+        throw "Unsupported command '$Command'. Run 'Cs2Config.en-US.ps1 help' to view available commands."
+    }
+
     switch ($Command) {
         'account' {
             switch ($Action) {
