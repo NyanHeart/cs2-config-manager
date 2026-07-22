@@ -100,7 +100,11 @@ param(
     [string]$Backup,
     [string[]]$Sections,
     [switch]$IncludeCustomCfg,
-    [switch]$Force
+    [switch]$Force,
+    [Alias('h', '?')]
+    [switch]$Help,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$RemainingArguments
 )
 
 Set-StrictMode -Version Latest
@@ -113,6 +117,12 @@ if ($Sections) {
 
 # Supporting files are relative to this script, so moving the scripts directory preserves portability.
 $ScriptRoot = Split-Path -Parent $PSCommandPath
+$CliFrameworkPath = Join-Path $ScriptRoot 'CliFramework.ps1'
+if (-not (Test-Path -LiteralPath $CliFrameworkPath)) {
+    throw "CLI framework file was not found: $CliFrameworkPath"
+}
+. $CliFrameworkPath
+$CliRouteAliases = @{ 'account set' = @('account', 'alias', 'set'); 'account rename' = @('account', 'alias', 'rename'); 'account remove' = @('account', 'alias', 'remove') }
 $StateRoot = Join-Path $ScriptRoot '.tmp'
 $AccountsFile = Join-Path $StateRoot 'Cs2Config.accounts.json'
 $TemplatesRoot = Join-Path $StateRoot 'templates'
@@ -803,12 +813,16 @@ function Show-BackupList {
     $rows | Format-Table -AutoSize
 }
 
-function Show-Usage {
-    Write-Host @'
+function Show-ScriptHelp {
+    param([pscustomobject]$Route)
+
+    $scriptName = Split-Path -Leaf $PSCommandPath
+    $entries = @{
+        '' = @"
 CS2 Config Manager
 
 Usage:
-  Cs2Config.en-US.ps1 <command> [subcommand] [parameters]
+  $scriptName <command> [subcommand] [parameters]
 
 Commands:
   account        List CS2 accounts or manage account aliases
@@ -818,28 +832,194 @@ Commands:
   restore        Restore account configuration from a backup
   practice       Import, update, or deploy local practice configuration
 
-Common examples:
-  Cs2Config.en-US.ps1 account list
-  Cs2Config.en-US.ps1 backup -Account main
-  Cs2Config.en-US.ps1 apply -Source main -Target alt
-  Cs2Config.en-US.ps1 practice list
-
 Help:
-  Cs2Config.en-US.ps1 help
-  Cs2Config.en-US.ps1 --help
-  Get-Help Cs2Config.en-US.ps1 -Examples
-'@
+  $scriptName <command> --help
+  $scriptName help <command> [subcommand]
+"@
+        'account' = @"
+Account management
+
+Usage:
+  $scriptName account list
+  $scriptName account alias <list|set|rename|remove> [parameters]
+
+Subcommands:
+  list            List detected CS2 accounts and their assigned aliases
+  alias list      List account aliases
+  alias set       Assign an alias to an account
+  alias rename    Rename an account alias
+  alias remove    Remove an account alias
+
+Short forms:
+  account set, account rename, and account remove map to their account alias counterparts.
+"@
+        'account list' = @"
+List CS2 accounts
+
+Usage:
+  $scriptName account list
+
+Lists detected CS2 configuration directories in Steam userdata, including assigned account aliases.
+"@
+        'account alias' = @"
+Account alias management
+
+Usage:
+  $scriptName account alias list
+  $scriptName account alias set -Account <alias-or-SteamId> -Name <new-alias>
+  $scriptName account alias rename -Name <old-alias> -NewName <new-alias>
+  $scriptName account alias remove -Name <alias>
+"@
+        'account alias list' = @"
+List account aliases
+
+Usage:
+  $scriptName account alias list
+"@
+        'account alias set' = @"
+Set an account alias
+
+Usage:
+  $scriptName account alias set -Account <alias-or-SteamId> -Name <new-alias>
+  $scriptName account set -Account <alias-or-SteamId> -Name <new-alias>
+
+Parameters:
+  -Account   A detected account alias or numeric Steam ID
+  -Name      Alias to create; only letters, numbers, periods, underscores, and hyphens are allowed
+"@
+        'account alias rename' = @"
+Rename an account alias
+
+Usage:
+  $scriptName account alias rename -Name <old-alias> -NewName <new-alias>
+"@
+        'account alias remove' = @"
+Remove an account alias
+
+Usage:
+  $scriptName account alias remove -Name <alias>
+"@
+        'backup' = @"
+Back up account configuration
+
+Usage:
+  $scriptName backup -Account <alias-or-SteamId> [-IncludeCustomCfg] [-WhatIf]
+  $scriptName backup list [-Account <alias-or-SteamId>]
+
+By default, only common CS2 settings are backed up. -IncludeCustomCfg also includes custom cfg files.
+trustedlaunch.cfg, Steam Cloud state, and inventory files are excluded.
+"@
+        'backup list' = @"
+List configuration backups
+
+Usage:
+  $scriptName backup list [-Account <alias-or-SteamId>]
+"@
+        'apply' = @"
+Copy account configuration
+
+Usage:
+  $scriptName apply -Source <source-alias-or-SteamId> -Target <target-alias-or-SteamId> [-IncludeCustomCfg] [-WhatIf]
+
+The target account is backed up first. Copied files are then verified with SHA-256.
+"@
+        'apply-preset' = @"
+Apply a cfg preset
+
+Usage:
+  $scriptName apply-preset -Account <alias-or-SteamId> -PresetPath <cfg-path> -Sections <categories> [-VideoPath <video-config-path>] [-WhatIf]
+
+Categories:
+  Viewmodel, Video, Hud, Radar, Audio. Separate multiple categories with commas.
+"@
+        'restore' = @"
+Restore account configuration
+
+Usage:
+  $scriptName restore -Account <alias-or-SteamId> -Backup <backup-directory-name> [-WhatIf]
+
+Use backup list to view backup directory names. The current target configuration is backed up before restoration.
+"@
+        'practice' = @"
+Local practice configuration
+
+Usage:
+  $scriptName practice template <import|update> -Name <name> (-SourcePath <path> | -Account <account> -ConfigPath <file-name>)
+  $scriptName practice apply -Name <name> [-WhatIf]
+  $scriptName practice list
+"@
+        'practice template' = @"
+Manage practice templates
+
+Usage:
+  $scriptName practice template import -Name <name> (-SourcePath <path> | -Account <account> -ConfigPath <file-name>)
+  $scriptName practice template update -Name <name> (-SourcePath <path> | -Account <account> -ConfigPath <file-name>)
+
+import creates a new template only. update overwrites an existing template. Templates are stored in the script-relative .tmp\\templates directory.
+"@
+        'practice template import' = @"
+Import a practice template
+
+Usage:
+  $scriptName practice template import -Name <name> (-SourcePath <cfg-path> | -Account <alias-or-SteamId> -ConfigPath <file-name>)
+"@
+        'practice template update' = @"
+Update a practice template
+
+Usage:
+  $scriptName practice template update -Name <name> (-SourcePath <cfg-path> | -Account <alias-or-SteamId> -ConfigPath <file-name>)
+"@
+        'practice apply' = @"
+Deploy a practice template
+
+Usage:
+  $scriptName practice apply -Name <name> [-WhatIf]
+
+The template is copied to the shared CS2 game cfg directory. On a local server, run exec <name>.
+"@
+        'practice list' = @"
+List practice templates
+
+Usage:
+  $scriptName practice list
+"@
+    }
+
+    $entry = Get-CliHelpEntry -Route $Route -Entries $entries
+    if ($entry.RequestedKey -and -not $entry.IsExactMatch) {
+        Write-Host "No dedicated help entry exists for '$($entry.RequestedKey)'; showing '$($entry.DisplayedKey)'.`n"
+    }
+    Write-Host $entry.Content
+}
+
+function Throw-CliRouteError {
+    param([pscustomobject]$Route, [string]$Message)
+
+    throw "$Message Run '$(Get-CliUsageCommand -Route $Route -ScriptPath $PSCommandPath)' for usage."
 }
 
 try {
-    if ([string]::IsNullOrWhiteSpace($Command) -or $Command -in @('help', '--help', '-h', '/?')) {
-        Show-Usage
+    $routeTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
+    $route = Resolve-CliRoute -Tokens $routeTokens -Aliases $CliRouteAliases -HelpRequested:$Help
+    if ($route.HelpRequested) {
+        Show-ScriptHelp -Route $route
         return
     }
+    if ($route.Path.Count -gt 3) {
+        Throw-CliRouteError -Route $route -Message "Command path '$($route.Key)' is too long."
+    }
+
+    $Command = $route.Path[0]
+    $Action = if ($route.Path.Count -gt 1) { $route.Path[1] } else { $null }
+    $Subaction = if ($route.Path.Count -gt 2) { $route.Path[2] } else { $null }
 
     $validCommands = @('account', 'backup', 'apply', 'apply-preset', 'restore', 'practice')
     if ($Command -notin $validCommands) {
-        throw "Unsupported command '$Command'. Run 'Cs2Config.en-US.ps1 help' to view available commands."
+        Throw-CliRouteError -Route $route -Message "Unsupported command '$Command'."
+    }
+    if ($route.Key -in @('account', 'account alias', 'practice', 'practice template')) {
+        Show-ScriptHelp -Route $route
+        return
     }
 
     switch ($Command) {
@@ -849,7 +1029,7 @@ try {
                 'alias' {
                     switch ($Subaction) {
                         'set' {
-                            if (-not $Account -or -not $Name) { throw 'account alias set requires -Account and -Name.' }
+                            if (-not $Account -or -not $Name) { Show-ScriptHelp -Route $route; return }
                             Test-ValidName -Value $Name
                             $resolvedAccount = Resolve-Account -Identifier $Account
                             Invoke-WithAccountsLock {
@@ -869,7 +1049,7 @@ try {
                             } | Format-Table -AutoSize
                         }
                         'rename' {
-                            if (-not $Name -or -not $NewName) { throw 'account alias rename requires -Name and -NewName.' }
+                            if (-not $Name -or -not $NewName) { Show-ScriptHelp -Route $route; return }
                             Test-ValidName -Value $NewName
                             Invoke-WithAccountsLock {
                                 $store = Get-AccountsStore
@@ -882,7 +1062,7 @@ try {
                             Write-Info "Alias renamed: $Name -> $NewName"
                         }
                         'remove' {
-                            if (-not $Name) { throw 'account alias remove requires -Name.' }
+                            if (-not $Name) { Show-ScriptHelp -Route $route; return }
                             Invoke-WithAccountsLock {
                                 $store = Get-AccountsStore
                                 if (-not $store.accounts.Contains($Name)) { throw "Alias was not found: $Name" }
@@ -891,27 +1071,27 @@ try {
                             }
                             Write-Info "Alias removed: $Name"
                         }
-                        default { throw 'Alias usage: account alias set|list|rename|remove.' }
+                        default { Throw-CliRouteError -Route $route -Message "Unsupported account alias command '$Subaction'." }
                     }
                 }
-                default { throw 'Account usage: account list or account alias set|list|rename|remove.' }
+                default { Throw-CliRouteError -Route $route -Message "Unsupported account command '$Action'." }
             }
         }
         'backup' {
             if ($Action -eq 'list') { Show-BackupList -AccountIdentifier $Account }
             elseif ($Account) { Invoke-AccountBackup }
-            else { throw 'Backup usage: backup -Account <alias-or-SteamId>, or backup list [-Account <alias-or-SteamId>].' }
+            else { Show-ScriptHelp -Route $route }
         }
         'apply' {
-            if (-not $Source -or -not $Target) { throw 'apply requires -Source and -Target.' }
+            if (-not $Source -or -not $Target) { Show-ScriptHelp -Route $route; return }
             Invoke-AccountApply
         }
         'apply-preset' {
-            if (-not $Account -or -not $PresetPath) { throw 'apply-preset requires -Account and -PresetPath.' }
+            if (-not $Account -or -not $PresetPath) { Show-ScriptHelp -Route $route; return }
             Invoke-PresetApply
         }
         'restore' {
-            if (-not $Account) { throw 'restore requires -Account.' }
+            if (-not $Account -or -not $Backup) { Show-ScriptHelp -Route $route; return }
             Invoke-AccountRestore
         }
         'practice' {
@@ -920,7 +1100,7 @@ try {
                     switch ($Subaction) {
                         'import' { Invoke-PracticeTemplateImport }
                         'update' { Invoke-PracticeTemplateImport -Update }
-                        default { throw 'Practice template usage: practice template import|update -Name <name> (-SourcePath <path> | -Account <account> -ConfigPath <file-name>).' }
+                        default { Throw-CliRouteError -Route $route -Message "Unsupported practice template command '$Subaction'." }
                     }
                 }
                 'apply' { Invoke-PracticeApply }
@@ -928,7 +1108,7 @@ try {
                     if (-not (Test-Path -LiteralPath $TemplatesRoot)) { Write-Host 'No practice templates have been imported.'; break }
                     Get-ChildItem -LiteralPath $TemplatesRoot -Filter '*.cfg' -File | Select-Object Name, Length, LastWriteTime | Format-Table -AutoSize
                 }
-                default { throw 'Practice usage: practice template import|update, practice apply, or practice list.' }
+                default { Throw-CliRouteError -Route $route -Message "Unsupported practice command '$Action'." }
             }
         }
     }

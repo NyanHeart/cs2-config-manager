@@ -23,6 +23,8 @@ The scripts have identical functionality. Their help, prompts, and errors are lo
 
 Both scripts store runtime state relative to their own location in `.tmp`. Account aliases, templates, backups, and logs are not committed to Git.
 
+`CliFramework.ps1` is the shared command-path parser and help framework. Keep it in the same directory as either entry script.
+
 ## Requirements
 
 - Windows
@@ -37,11 +39,11 @@ List available accounts with the English script:
 Cs2Config.en-US.ps1 account list
 ```
 
-Set an account alias:
+Set an account alias (the shorter `account set` form is also supported):
 
 ```powershell
 Cs2Config.en-US.ps1 `
-  account alias set -Account 123456789 -Name primary
+  account set -Account 123456789 -Name primary
 ```
 
 Back up an account configuration:
@@ -126,6 +128,13 @@ Run either script without arguments, or append `--help`, for a concise command o
 ```powershell
 Cs2Config.en-US.ps1
 Cs2Config.en-US.ps1 --help
+```
+
+Help is available at every command level, including deep command paths:
+
+```powershell
+Cs2Config.en-US.ps1 account set --help
+Cs2Config.en-US.ps1 help practice template import
 ```
 
 Use PowerShell help for the full reference and examples:

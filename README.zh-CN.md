@@ -23,6 +23,8 @@
 
 两份脚本均把运行时数据保存到其所在目录相对路径的 `.tmp` 中：账号别名、模板、备份和操作日志都不会提交到 Git。
 
+`CliFramework.ps1` 是共用的命令路径解析与帮助框架；使用任一入口脚本时，都应将它保留在同一目录。
+
 ## 要求
 
 - Windows
@@ -37,11 +39,11 @@
 Cs2Config.zh-CN.ps1 account list
 ```
 
-为账号建立别名：
+为账号建立别名（也支持更短的 `account set` 写法）：
 
 ```powershell
 Cs2Config.zh-CN.ps1 `
-  account alias set -Account 123456789 -Name primary
+  account set -Account 123456789 -Name primary
 ```
 
 备份账号配置：
@@ -126,6 +128,13 @@ Cs2Config.zh-CN.ps1 restore -Account primary -Backup <备份目录名> -WhatIf
 ```powershell
 Cs2Config.zh-CN.ps1
 Cs2Config.zh-CN.ps1 --help
+```
+
+每一层命令都支持帮助，包括深层命令路径：
+
+```powershell
+Cs2Config.zh-CN.ps1 account set --help
+Cs2Config.zh-CN.ps1 help practice template import
 ```
 
 完整参数说明与示例可使用 PowerShell 帮助：

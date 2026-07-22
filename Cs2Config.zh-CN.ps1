@@ -100,7 +100,11 @@ param(
     [string]$Backup,
     [string[]]$Sections,
     [switch]$IncludeCustomCfg,
-    [switch]$Force
+    [switch]$Force,
+    [Alias('h', '?')]
+    [switch]$Help,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$RemainingArguments
 )
 
 Set-StrictMode -Version Latest
@@ -113,6 +117,12 @@ if ($Sections) {
 
 # 所有辅助文件相对于脚本自身存放，移动整个 scripts 目录后仍可工作。
 $ScriptRoot = Split-Path -Parent $PSCommandPath
+$CliFrameworkPath = Join-Path $ScriptRoot 'CliFramework.ps1'
+if (-not (Test-Path -LiteralPath $CliFrameworkPath)) {
+    throw "未找到 CLI 框架文件: $CliFrameworkPath"
+}
+. $CliFrameworkPath
+$CliRouteAliases = @{ 'account set' = @('account', 'alias', 'set'); 'account rename' = @('account', 'alias', 'rename'); 'account remove' = @('account', 'alias', 'remove') }
 $StateRoot = Join-Path $ScriptRoot '.tmp'
 $AccountsFile = Join-Path $StateRoot 'Cs2Config.accounts.json'
 $TemplatesRoot = Join-Path $StateRoot 'templates'
@@ -803,12 +813,16 @@ function Show-BackupList {
     $rows | Format-Table -AutoSize
 }
 
-function Show-Usage {
-    Write-Host @'
+function Show-ScriptHelp {
+    param([pscustomobject]$Route)
+
+    $scriptName = Split-Path -Leaf $PSCommandPath
+    $entries = @{
+        '' = @"
 CS2 配置管理工具
 
 用法:
-  Cs2Config.zh-CN.ps1 <命令> [子命令] [参数]
+  $scriptName <命令> [子命令] [参数]
 
 命令:
   account        列出 CS2 账号，或管理账号别名
@@ -818,28 +832,195 @@ CS2 配置管理工具
   restore        从备份恢复账号配置
   practice       导入、更新或部署本地练习服配置
 
-常用示例:
-  Cs2Config.zh-CN.ps1 account list
-  Cs2Config.zh-CN.ps1 backup -Account main
-  Cs2Config.zh-CN.ps1 apply -Source main -Target alt
-  Cs2Config.zh-CN.ps1 practice list
-
 帮助:
-  Cs2Config.zh-CN.ps1 help
-  Cs2Config.zh-CN.ps1 --help
-  Get-Help Cs2Config.zh-CN.ps1 -Examples
-'@
+  $scriptName <命令> --help
+  $scriptName help <命令> [子命令]
+"@
+        'account' = @"
+账号管理
+
+用法:
+  $scriptName account list
+  $scriptName account alias <list|set|rename|remove> [参数]
+
+子命令:
+  list            列出检测到的 CS2 账号和已设置的别名
+  alias list      列出账号别名
+  alias set       为账号设置别名
+  alias rename    重命名账号别名
+  alias remove    删除账号别名
+
+短写法:
+  account set、account rename、account remove 分别等同于 account alias 的对应子命令。
+"@
+        'account list' = @"
+列出 CS2 账号
+
+用法:
+  $scriptName account list
+
+输出 Steam userdata 下检测到的 CS2 配置目录，以及已关联的账号别名。
+"@
+        'account alias' = @"
+账号别名管理
+
+用法:
+  $scriptName account alias list
+  $scriptName account alias set -Account <别名或SteamId> -Name <新别名>
+  $scriptName account alias rename -Name <旧别名> -NewName <新别名>
+  $scriptName account alias remove -Name <别名>
+"@
+        'account alias list' = @"
+列出账号别名
+
+用法:
+  $scriptName account alias list
+"@
+        'account alias set' = @"
+设置账号别名
+
+用法:
+  $scriptName account alias set -Account <别名或SteamId> -Name <新别名>
+  $scriptName account set -Account <别名或SteamId> -Name <新别名>
+
+参数:
+  -Account   已检测到的账号别名或 Steam 数字 ID
+  -Name      要创建的别名，仅允许字母、数字、点、下划线和连字符
+"@
+        'account alias rename' = @"
+重命名账号别名
+
+用法:
+  $scriptName account alias rename -Name <旧别名> -NewName <新别名>
+"@
+        'account alias remove' = @"
+删除账号别名
+
+用法:
+  $scriptName account alias remove -Name <别名>
+"@
+        'backup' = @"
+备份账号配置
+
+用法:
+  $scriptName backup -Account <别名或SteamId> [-IncludeCustomCfg] [-WhatIf]
+  $scriptName backup list [-Account <别名或SteamId>]
+
+说明:
+  默认只备份通用 CS2 设置；-IncludeCustomCfg 额外包含自定义 cfg。
+  trustedlaunch.cfg、Steam Cloud 状态和库存文件会被排除。
+"@
+        'backup list' = @"
+列出配置备份
+
+用法:
+  $scriptName backup list [-Account <别名或SteamId>]
+"@
+        'apply' = @"
+复制账号配置
+
+用法:
+  $scriptName apply -Source <来源别名或SteamId> -Target <目标别名或SteamId> [-IncludeCustomCfg] [-WhatIf]
+
+目标账号会先自动备份；实际复制后会进行 SHA-256 校验。
+"@
+        'apply-preset' = @"
+应用 cfg 预设
+
+用法:
+  $scriptName apply-preset -Account <别名或SteamId> -PresetPath <cfg路径> -Sections <分类> [-VideoPath <视频配置路径>] [-WhatIf]
+
+分类:
+  Viewmodel、Video、Hud、Radar、Audio。可用逗号分隔多个分类。
+"@
+        'restore' = @"
+恢复账号配置
+
+用法:
+  $scriptName restore -Account <别名或SteamId> -Backup <备份目录名> [-WhatIf]
+
+先使用 backup list 查看备份目录名。恢复前会自动备份当前目标配置。
+"@
+        'practice' = @"
+本地练习服配置
+
+用法:
+  $scriptName practice template <import|update> -Name <名称> (-SourcePath <路径> | -Account <账号> -ConfigPath <文件名>)
+  $scriptName practice apply -Name <名称> [-WhatIf]
+  $scriptName practice list
+"@
+        'practice template' = @"
+管理练习服模板
+
+用法:
+  $scriptName practice template import -Name <名称> (-SourcePath <路径> | -Account <账号> -ConfigPath <文件名>)
+  $scriptName practice template update -Name <名称> (-SourcePath <路径> | -Account <账号> -ConfigPath <文件名>)
+
+import 仅创建新模板；update 覆盖已有模板。模板存放在脚本相对 .tmp\\templates 目录。
+"@
+        'practice template import' = @"
+导入练习服模板
+
+用法:
+  $scriptName practice template import -Name <名称> (-SourcePath <cfg路径> | -Account <别名或SteamId> -ConfigPath <文件名>)
+"@
+        'practice template update' = @"
+更新练习服模板
+
+用法:
+  $scriptName practice template update -Name <名称> (-SourcePath <cfg路径> | -Account <别名或SteamId> -ConfigPath <文件名>)
+"@
+        'practice apply' = @"
+部署练习服模板
+
+用法:
+  $scriptName practice apply -Name <名称> [-WhatIf]
+
+模板会复制到 CS2 游戏共享 cfg 目录；进入本地服务器后执行 exec <名称>。
+"@
+        'practice list' = @"
+列出练习服模板
+
+用法:
+  $scriptName practice list
+"@
+    }
+
+    $entry = Get-CliHelpEntry -Route $Route -Entries $entries
+    if ($entry.RequestedKey -and -not $entry.IsExactMatch) {
+        Write-Host "未找到 '$($entry.RequestedKey)' 的独立帮助，显示 '$($entry.DisplayedKey)' 的可用信息。`n"
+    }
+    Write-Host $entry.Content
+}
+
+function Throw-CliRouteError {
+    param([pscustomobject]$Route, [string]$Message)
+
+    throw "$Message 运行 '$(Get-CliUsageCommand -Route $Route -ScriptPath $PSCommandPath)' 查看用法。"
 }
 
 try {
-    if ([string]::IsNullOrWhiteSpace($Command) -or $Command -in @('help', '--help', '-h', '/?')) {
-        Show-Usage
+    $routeTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
+    $route = Resolve-CliRoute -Tokens $routeTokens -Aliases $CliRouteAliases -HelpRequested:$Help
+    if ($route.HelpRequested) {
+        Show-ScriptHelp -Route $route
         return
     }
+    if ($route.Path.Count -gt 3) {
+        Throw-CliRouteError -Route $route -Message "命令路径 '$($route.Key)' 过长。"
+    }
+
+    $Command = $route.Path[0]
+    $Action = if ($route.Path.Count -gt 1) { $route.Path[1] } else { $null }
+    $Subaction = if ($route.Path.Count -gt 2) { $route.Path[2] } else { $null }
 
     $validCommands = @('account', 'backup', 'apply', 'apply-preset', 'restore', 'practice')
     if ($Command -notin $validCommands) {
-        throw "不支持的命令 '$Command'。运行 'Cs2Config.zh-CN.ps1 help' 查看可用命令。"
+        Throw-CliRouteError -Route $route -Message "不支持的命令 '$Command'。"
+    }
+    if ($route.Key -in @('account', 'account alias', 'practice', 'practice template')) {
+        Show-ScriptHelp -Route $route
+        return
     }
 
     switch ($Command) {
@@ -849,7 +1030,7 @@ try {
                 'alias' {
                     switch ($Subaction) {
                         'set' {
-                            if (-not $Account -or -not $Name) { throw 'account alias set 需要 -Account 和 -Name。' }
+                            if (-not $Account -or -not $Name) { Show-ScriptHelp -Route $route; return }
                             Test-ValidName -Value $Name
                             $resolvedAccount = Resolve-Account -Identifier $Account
                             Invoke-WithAccountsLock {
@@ -869,7 +1050,7 @@ try {
                             } | Format-Table -AutoSize
                         }
                         'rename' {
-                            if (-not $Name -or -not $NewName) { throw 'account alias rename 需要 -Name 和 -NewName。' }
+                            if (-not $Name -or -not $NewName) { Show-ScriptHelp -Route $route; return }
                             Test-ValidName -Value $NewName
                             Invoke-WithAccountsLock {
                                 $store = Get-AccountsStore
@@ -882,7 +1063,7 @@ try {
                             Write-Info "别名已重命名: $Name -> $NewName"
                         }
                         'remove' {
-                            if (-not $Name) { throw 'account alias remove 需要 -Name。' }
+                            if (-not $Name) { Show-ScriptHelp -Route $route; return }
                             Invoke-WithAccountsLock {
                                 $store = Get-AccountsStore
                                 if (-not $store.accounts.Contains($Name)) { throw "未找到别名: $Name" }
@@ -891,27 +1072,27 @@ try {
                             }
                             Write-Info "别名已移除: $Name"
                         }
-                        default { throw '账号别名用法: account alias set|list|rename|remove。' }
+                        default { Throw-CliRouteError -Route $route -Message "不支持的账号别名命令 '$Subaction'。" }
                     }
                 }
-                default { throw '账号用法: account list 或 account alias set|list|rename|remove。' }
+                default { Throw-CliRouteError -Route $route -Message "不支持的账号命令 '$Action'。" }
             }
         }
         'backup' {
             if ($Action -eq 'list') { Show-BackupList -AccountIdentifier $Account }
             elseif ($Account) { Invoke-AccountBackup }
-            else { throw '备份用法: backup -Account <别名或SteamId>，或 backup list [-Account <别名或SteamId>]。' }
+            else { Show-ScriptHelp -Route $route }
         }
         'apply' {
-            if (-not $Source -or -not $Target) { throw 'apply 需要 -Source 和 -Target。' }
+            if (-not $Source -or -not $Target) { Show-ScriptHelp -Route $route; return }
             Invoke-AccountApply
         }
         'apply-preset' {
-            if (-not $Account -or -not $PresetPath) { throw 'apply-preset 需要 -Account 和 -PresetPath。' }
+            if (-not $Account -or -not $PresetPath) { Show-ScriptHelp -Route $route; return }
             Invoke-PresetApply
         }
         'restore' {
-            if (-not $Account) { throw 'restore 需要 -Account。' }
+            if (-not $Account -or -not $Backup) { Show-ScriptHelp -Route $route; return }
             Invoke-AccountRestore
         }
         'practice' {
@@ -920,7 +1101,7 @@ try {
                     switch ($Subaction) {
                         'import' { Invoke-PracticeTemplateImport }
                         'update' { Invoke-PracticeTemplateImport -Update }
-                        default { throw '练习模板用法: practice template import|update -Name <名称> (-SourcePath <路径> | -Account <账号> -ConfigPath <文件名>)。' }
+                        default { Throw-CliRouteError -Route $route -Message "不支持的练习模板命令 '$Subaction'。" }
                     }
                 }
                 'apply' { Invoke-PracticeApply }
@@ -928,7 +1109,7 @@ try {
                     if (-not (Test-Path -LiteralPath $TemplatesRoot)) { Write-Host '没有已导入的练习模板。'; break }
                     Get-ChildItem -LiteralPath $TemplatesRoot -Filter '*.cfg' -File | Select-Object Name, Length, LastWriteTime | Format-Table -AutoSize
                 }
-                default { throw '练习服用法: practice template import|update、practice apply 或 practice list。' }
+                default { Throw-CliRouteError -Route $route -Message "不支持的练习服命令 '$Action'。" }
             }
         }
     }
