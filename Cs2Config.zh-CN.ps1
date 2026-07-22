@@ -110,11 +110,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# pwsh -File 会将逗号分隔的分类视为一个参数，统一拆分后再处理。
-if ($Sections) {
-    $Sections = @($Sections | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-}
-
 # 所有辅助文件相对于脚本自身存放，移动整个 scripts 目录后仍可工作。
 $ScriptRoot = Split-Path -Parent $PSCommandPath
 $CliFrameworkPath = Join-Path $ScriptRoot 'CliFramework.ps1'
@@ -123,6 +118,28 @@ if (-not (Test-Path -LiteralPath $CliFrameworkPath)) {
 }
 . $CliFrameworkPath
 $CliRouteAliases = @{ 'account set' = @('account', 'alias', 'set'); 'account rename' = @('account', 'alias', 'rename'); 'account remove' = @('account', 'alias', 'remove') }
+$CliLongValueOptions = @{
+    account = 'Account'; source = 'Source'; target = 'Target'; name = 'Name'; newname = 'NewName'; 'new-name' = 'NewName'
+    presetpath = 'PresetPath'; 'preset-path' = 'PresetPath'; videopath = 'VideoPath'; 'video-path' = 'VideoPath'
+    sourcepath = 'SourcePath'; 'source-path' = 'SourcePath'; configpath = 'ConfigPath'; 'config-path' = 'ConfigPath'
+    backup = 'Backup'; sections = 'Sections'
+}
+$CliLongSwitchOptions = @{ includecustomcfg = 'IncludeCustomCfg'; 'include-custom-cfg' = 'IncludeCustomCfg'; force = 'Force'; whatif = 'WhatIf'; 'what-if' = 'WhatIf' }
+$rawCliTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
+$longOptionResult = Convert-CliLongOptions -Tokens $rawCliTokens -ValueOptions $CliLongValueOptions -SwitchOptions $CliLongSwitchOptions -MissingValueMessage { param($Option) "选项 '$Option' 需要提供值。" }
+foreach ($option in $longOptionResult.Values.GetEnumerator()) { Set-Variable -Name $option.Key -Value $option.Value }
+if ($longOptionResult.Switches.ContainsKey('IncludeCustomCfg')) { $IncludeCustomCfg = $true }
+if ($longOptionResult.Switches.ContainsKey('Force')) { $Force = $true }
+if ($longOptionResult.Switches.ContainsKey('WhatIf')) { $WhatIfPreference = $true }
+$Command = if ($longOptionResult.Remaining.Count -gt 0) { $longOptionResult.Remaining[0] } else { $null }
+$Action = if ($longOptionResult.Remaining.Count -gt 1) { $longOptionResult.Remaining[1] } else { $null }
+$Subaction = if ($longOptionResult.Remaining.Count -gt 2) { $longOptionResult.Remaining[2] } else { $null }
+$RemainingArguments = if ($longOptionResult.Remaining.Count -gt 3) { @($longOptionResult.Remaining | Select-Object -Skip 3) } else { @() }
+
+# 将逗号分隔的分类统一拆分；同时支持 PowerShell 参数和双短横线长选项。
+if ($Sections) {
+    $Sections = @($Sections | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
 $StateRoot = Join-Path $ScriptRoot '.tmp'
 $AccountsFile = Join-Path $StateRoot 'Cs2Config.accounts.json'
 $TemplatesRoot = Join-Path $StateRoot 'templates'
@@ -884,8 +901,8 @@ CS2 配置管理工具
   $scriptName account set -Account <别名或SteamId> -Name <新别名>
 
 参数:
-  -Account   已检测到的账号别名或 Steam 数字 ID
-  -Name      要创建的别名，仅允许字母、数字、点、下划线和连字符
+  -Account 或 --Account   已检测到的账号别名或 Steam 数字 ID
+  -Name 或 --Name         要创建的别名，仅允许字母、数字、点、下划线和连字符
 "@
         'account alias rename' = @"
 重命名账号别名

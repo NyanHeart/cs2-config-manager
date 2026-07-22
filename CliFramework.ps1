@@ -69,3 +69,57 @@ function Get-CliUsageCommand {
     $parts = @((Split-Path -Leaf $ScriptPath)) + @($Route.Path) + @('--help')
     $parts -join ' '
 }
+
+function Convert-CliLongOptions {
+    param(
+        [string[]]$Tokens,
+        [hashtable]$ValueOptions = @{},
+        [hashtable]$SwitchOptions = @{},
+        [scriptblock]$MissingValueMessage = { param($Option) "Option '$Option' requires a value." }
+    )
+
+    $remaining = [System.Collections.Generic.List[string]]::new()
+    $values = @{}
+    $switches = @{}
+    for ($index = 0; $index -lt $Tokens.Count; $index++) {
+        $token = $Tokens[$index]
+        if ([string]::IsNullOrWhiteSpace($token) -or -not $token.StartsWith('--')) {
+            $remaining.Add($token)
+            continue
+        }
+
+        $optionAndValue = $token.Substring(2)
+        $separatorIndex = $optionAndValue.IndexOf('=')
+        $optionName = if ($separatorIndex -ge 0) { $optionAndValue.Substring(0, $separatorIndex) } else { $optionAndValue }
+        $optionKey = $optionName.ToLowerInvariant()
+        $inlineValue = if ($separatorIndex -ge 0) { $optionAndValue.Substring($separatorIndex + 1) } else { $null }
+
+        if ($ValueOptions.ContainsKey($optionKey)) {
+            $value = $inlineValue
+            if ($null -eq $value) {
+                if ($index + 1 -ge $Tokens.Count -or $Tokens[$index + 1].StartsWith('--')) {
+                    throw (& $MissingValueMessage $token)
+                }
+                $index++
+                $value = $Tokens[$index]
+            }
+            $values[$ValueOptions[$optionKey]] = $value
+            continue
+        }
+        if ($SwitchOptions.ContainsKey($optionKey)) {
+            if ($null -ne $inlineValue) {
+                throw "Switch option '$token' does not accept a value."
+            }
+            $switches[$SwitchOptions[$optionKey]] = $true
+            continue
+        }
+
+        $remaining.Add($token)
+    }
+
+    [pscustomobject]@{
+        Remaining = @($remaining)
+        Values = $values
+        Switches = $switches
+    }
+}

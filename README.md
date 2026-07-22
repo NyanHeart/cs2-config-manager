@@ -24,6 +24,7 @@ The scripts have identical functionality. Their help, prompts, and errors are lo
 Both scripts store runtime state relative to their own location in `.tmp`. Account aliases, templates, backups, and logs are not committed to Git.
 
 `CliFramework.ps1` is the shared command-path parser and help framework. Keep it in the same directory as either entry script.
+Both PowerShell-style options such as `-Account` and long options such as `--Account` are supported.
 
 ## Requirements
 

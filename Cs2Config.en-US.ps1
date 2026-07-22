@@ -110,11 +110,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# pwsh -File passes a comma-separated category list as one argument; normalize it here.
-if ($Sections) {
-    $Sections = @($Sections | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-}
-
 # Supporting files are relative to this script, so moving the scripts directory preserves portability.
 $ScriptRoot = Split-Path -Parent $PSCommandPath
 $CliFrameworkPath = Join-Path $ScriptRoot 'CliFramework.ps1'
@@ -123,6 +118,28 @@ if (-not (Test-Path -LiteralPath $CliFrameworkPath)) {
 }
 . $CliFrameworkPath
 $CliRouteAliases = @{ 'account set' = @('account', 'alias', 'set'); 'account rename' = @('account', 'alias', 'rename'); 'account remove' = @('account', 'alias', 'remove') }
+$CliLongValueOptions = @{
+    account = 'Account'; source = 'Source'; target = 'Target'; name = 'Name'; newname = 'NewName'; 'new-name' = 'NewName'
+    presetpath = 'PresetPath'; 'preset-path' = 'PresetPath'; videopath = 'VideoPath'; 'video-path' = 'VideoPath'
+    sourcepath = 'SourcePath'; 'source-path' = 'SourcePath'; configpath = 'ConfigPath'; 'config-path' = 'ConfigPath'
+    backup = 'Backup'; sections = 'Sections'
+}
+$CliLongSwitchOptions = @{ includecustomcfg = 'IncludeCustomCfg'; 'include-custom-cfg' = 'IncludeCustomCfg'; force = 'Force'; whatif = 'WhatIf'; 'what-if' = 'WhatIf' }
+$rawCliTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
+$longOptionResult = Convert-CliLongOptions -Tokens $rawCliTokens -ValueOptions $CliLongValueOptions -SwitchOptions $CliLongSwitchOptions
+foreach ($option in $longOptionResult.Values.GetEnumerator()) { Set-Variable -Name $option.Key -Value $option.Value }
+if ($longOptionResult.Switches.ContainsKey('IncludeCustomCfg')) { $IncludeCustomCfg = $true }
+if ($longOptionResult.Switches.ContainsKey('Force')) { $Force = $true }
+if ($longOptionResult.Switches.ContainsKey('WhatIf')) { $WhatIfPreference = $true }
+$Command = if ($longOptionResult.Remaining.Count -gt 0) { $longOptionResult.Remaining[0] } else { $null }
+$Action = if ($longOptionResult.Remaining.Count -gt 1) { $longOptionResult.Remaining[1] } else { $null }
+$Subaction = if ($longOptionResult.Remaining.Count -gt 2) { $longOptionResult.Remaining[2] } else { $null }
+$RemainingArguments = if ($longOptionResult.Remaining.Count -gt 3) { @($longOptionResult.Remaining | Select-Object -Skip 3) } else { @() }
+
+# Normalize comma-separated categories from either PowerShell parameters or double-hyphen long options.
+if ($Sections) {
+    $Sections = @($Sections | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
 $StateRoot = Join-Path $ScriptRoot '.tmp'
 $AccountsFile = Join-Path $StateRoot 'Cs2Config.accounts.json'
 $TemplatesRoot = Join-Path $StateRoot 'templates'
@@ -884,8 +901,8 @@ Usage:
   $scriptName account set -Account <alias-or-SteamId> -Name <new-alias>
 
 Parameters:
-  -Account   A detected account alias or numeric Steam ID
-  -Name      Alias to create; only letters, numbers, periods, underscores, and hyphens are allowed
+  -Account or --Account   A detected account alias or numeric Steam ID
+  -Name or --Name         Alias to create; only letters, numbers, periods, underscores, and hyphens are allowed
 "@
         'account alias rename' = @"
 Rename an account alias
