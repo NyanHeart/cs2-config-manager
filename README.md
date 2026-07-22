@@ -11,7 +11,7 @@ A Windows and PowerShell 7 tool for managing CS2 configuration files across Stea
 - Backs up, previews, copies, and restores account-level configuration.
 - Merges selected settings from external cfg files by `Viewmodel`, `Video`, `Hud`, `Radar`, and `Audio` categories.
 - Imports, updates, and deploys local practice-server cfg templates.
-- Supports `-WhatIf`, automatic backups, and SHA-256 verification for write operations.
+- Supports `--what-if`, automatic backups, and SHA-256 verification for write operations.
 - Excludes non-portable Steam Cloud, inventory, and `trustedlaunch.cfg` state by default.
 
 ## Script Languages
@@ -24,7 +24,12 @@ The scripts have identical functionality. Their help, prompts, and errors are lo
 Both scripts store runtime state relative to their own location in `.tmp`. Account aliases, templates, backups, and logs are not committed to Git.
 
 `CliFramework.ps1` is the shared command-path parser and help framework. Keep it in the same directory as either entry script.
-Both PowerShell-style options such as `-Account` and long options such as `--Account` are supported.
+
+## Command-Line Conventions
+
+- Use single-letter options for common inputs: `-a` account, `-s` source, `-t` target, `-n` name, `-p` preset path, `-c` sections, `-b` backup, `-i` include custom cfg, and `-h` help.
+- Use lowercase kebab-case long options: `--account`, `--preset-path`, `--include-custom-cfg`, and `--what-if`.
+- Less frequent inputs use their long form, such as `--new-name`, `--source-path`, `--config-path`, `--video-path`, and `--force`.
 
 ## Requirements
 
@@ -44,24 +49,24 @@ Set an account alias (the shorter `account set` form is also supported):
 
 ```powershell
 Cs2Config.en-US.ps1 `
-  account set -Account 123456789 -Name primary
+  account set -a 123456789 -n primary
 ```
 
 Back up an account configuration:
 
 ```powershell
 Cs2Config.en-US.ps1 `
-  backup -Account primary -IncludeCustomCfg
+  backup --account primary --include-custom-cfg
 ```
 
 Preview and then copy common settings from one account to another:
 
 ```powershell
 Cs2Config.en-US.ps1 `
-  apply -Source primary -Target secondary -WhatIf
+  apply -s primary -t secondary --what-if
 
 Cs2Config.en-US.ps1 `
-  apply -Source primary -Target secondary
+  apply -s primary -t secondary
 ```
 
 ## Applying Selected Settings from an External cfg
@@ -71,15 +76,15 @@ External `autoexec.cfg` files commonly contain bindings, sensitivity, crosshair,
 ```powershell
 Cs2Config.en-US.ps1 `
   apply-preset `
-  -Account primary `
-  -PresetPath C:\Users\you\Downloads\autoexec.cfg `
-  -Sections Viewmodel,Video,Hud,Radar,Audio `
-  -WhatIf
+  --account primary `
+  --preset-path C:\Users\you\Downloads\autoexec.cfg `
+  --sections Viewmodel,Video,Hud,Radar,Audio `
+  --what-if
 ```
 
-Review the preview, then remove `-WhatIf` to apply it. Unselected categories such as bindings, crosshair, and sensitivity are not changed.
+Review the preview, then remove `--what-if` to apply it. Unselected categories such as bindings, crosshair, and sensitivity are not changed.
 
-If you have a separate `cs2_video.txt`, provide it with `-VideoPath`. Recognized video settings are merged without replacing GPU device IDs, monitor index, or refresh rate.
+If you have a separate `cs2_video.txt`, provide it with `--video-path`. Recognized video settings are merged without replacing GPU device IDs, monitor index, or refresh rate.
 
 ## Practice Templates
 
@@ -89,12 +94,12 @@ Practice cfg files are not account-level files. When you run `exec <name>`, CS2 
 # Import an existing cfg as a template
 Cs2Config.en-US.ps1 `
   practice template import `
-  -Name practice `
-  -SourcePath C:\Users\you\Downloads\practice.cfg
+  -n practice `
+  --source-path C:\Users\you\Downloads\practice.cfg
 
 # Deploy it to the CS2 game directory
 Cs2Config.en-US.ps1 `
-  practice apply -Name practice
+  practice apply -n practice
 ```
 
 On a local server, open the CS2 console and run:
@@ -118,8 +123,8 @@ The following are excluded from account copying by default:
 List backups and preview a restore before making a change:
 
 ```powershell
-Cs2Config.en-US.ps1 backup list -Account primary
-Cs2Config.en-US.ps1 restore -Account primary -Backup <backup-directory-name> -WhatIf
+Cs2Config.en-US.ps1 backup list -a primary
+Cs2Config.en-US.ps1 restore -a primary -b <backup-directory-name> --what-if
 ```
 
 ## Help

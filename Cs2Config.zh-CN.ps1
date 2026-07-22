@@ -9,26 +9,32 @@
 
     账号级配置位于 Steam userdata 目录，使用账号别名或 Steam 数字 ID 操作。
     练习服配置位于 CS2 游戏安装目录，所有本机账号共享。
-    所有写入命令会在 CS2 运行时拒绝执行，并支持 -WhatIf 预览。
+    所有写入命令会在 CS2 运行时拒绝执行，并支持 --what-if 预览。
 
 .PARAMETER Command
     可选的顶级命令：account、backup、apply、apply-preset、restore 或 practice。
 
-.PARAMETER Account
-    账号别名或 Steam 数字 ID。可通过 account list 查看可用账号。
+.PARAMETER a
+    账号别名或 Steam 数字 ID。完整形式为 --account。
 
-.PARAMETER Source
-    apply 命令的来源账号别名或 Steam 数字 ID。
+.PARAMETER s
+    apply 命令的来源账号别名或 Steam 数字 ID。完整形式为 --source。
 
-.PARAMETER Target
-    apply 命令的目标账号别名或 Steam 数字 ID。
+.PARAMETER t
+    apply 命令的目标账号别名或 Steam 数字 ID。完整形式为 --target。
 
-.PARAMETER Sections
-    apply-preset 要合并的分类。可用值：Viewmodel、Video、Hud、Radar、Audio。
+.PARAMETER n
+    练习服模板名称或账号别名名称。完整形式为 --name。
+
+.PARAMETER p
+    外来 cfg 预设路径。完整形式为 --preset-path。
+
+.PARAMETER c
+    apply-preset 要合并的分类。完整形式为 --sections；可用值：Viewmodel、Video、Hud、Radar、Audio。
     可使用逗号分隔，例如 Viewmodel,Hud,Radar。
 
-.PARAMETER Name
-    练习服模板名称，不含 .cfg 扩展名。游戏内使用 exec <名称> 执行。
+.PARAMETER h
+    显示命令帮助。完整形式为 --help。
 
 .EXAMPLE
     Cs2Config.ps1 account list
@@ -36,48 +42,47 @@
     列出当前电脑中检测到的、包含 CS2 配置的 Steam 账号。
 
 .EXAMPLE
-    Cs2Config.ps1 account alias set -Account 123456789 -Name primary
+    Cs2Config.ps1 account set -a 123456789 -n primary
 
     为账号设置别名。之后可在命令中用 primary 代替数字 Steam ID。
 
 .EXAMPLE
-    Cs2Config.ps1 backup -Account primary -IncludeCustomCfg
+    Cs2Config.ps1 backup --account primary --include-custom-cfg
 
     备份账号的通用 CS2 配置和自定义 .cfg 文件到脚本相对 .tmp\backups 目录。
     trustedlaunch.cfg、Steam Cloud 状态和库存文件会被排除。
 
 .EXAMPLE
-    Cs2Config.ps1 apply -Source primary -Target secondary -WhatIf
+    Cs2Config.ps1 apply -s primary -t secondary --what-if
 
     预览从 primary 复制到 secondary 的账号配置变更，不写入任何文件。
 
 .EXAMPLE
-    Cs2Config.ps1 apply -Source primary -Target secondary
+    Cs2Config.ps1 apply -s primary -t secondary
 
     实际复制通用账号配置。目标文件会先备份，并在复制后进行 SHA-256 校验。
 
 .EXAMPLE
-    Cs2Config.ps1 apply-preset -Account primary -PresetPath C:\Users\<your-user>\Downloads\autoexec.cfg -Sections Viewmodel,Hud,Radar,Audio -WhatIf
+    Cs2Config.ps1 apply-preset -a primary -p C:\Users\<your-user>\Downloads\autoexec.cfg -c Viewmodel,Hud,Radar,Audio --what-if
 
     预览从外来 cfg 中按分类提取设置并合并到指定账号。键位、准星、灵敏度等未选分类不会修改。
 
 .EXAMPLE
-    Cs2Config.ps1 practice template import -Name practice -SourcePath C:\Users\<your-user>\Downloads\practice.cfg
-    Cs2Config.ps1 practice apply -Name practice
+    Cs2Config.ps1 practice template import -n practice --source-path C:\Users\<your-user>\Downloads\practice.cfg
+    Cs2Config.ps1 practice apply -n practice
 
     导入练习服模板并部署到 CS2 游戏目录。进入本地服务器后，在控制台执行 exec practice。
 
 .EXAMPLE
-    Cs2Config.ps1 backup list -Account primary
-    Cs2Config.ps1 restore -Account primary -Backup <备份目录名> -WhatIf
+    Cs2Config.ps1 backup list -a primary
+    Cs2Config.ps1 restore -a primary -b <备份目录名> --what-if
 
     列出账号备份，并预览恢复指定备份。
 
 .NOTES
     附属数据目录相对于脚本自身：.tmp\Cs2Config.accounts.json、.tmp\templates、.tmp\backups、.tmp\logs。
-    对会写入配置的命令，建议先使用 -WhatIf 检查影响范围。
+    对会写入配置的命令，建议先使用 --what-if 检查影响范围。
 #>
-[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
     [Parameter(Position = 0)]
     [string]$Command,
@@ -88,21 +93,17 @@ param(
     [Parameter(Position = 2)]
     [string]$Subaction,
 
-    [string]$Account,
-    [string]$Source,
-    [string]$Target,
-    [string]$Name,
-    [string]$NewName,
-    [string]$PresetPath,
-    [string]$VideoPath,
-    [string]$SourcePath,
-    [string]$ConfigPath,
-    [string]$Backup,
-    [string[]]$Sections,
-    [switch]$IncludeCustomCfg,
-    [switch]$Force,
-    [Alias('h', '?')]
-    [switch]$Help,
+    [string]$a,
+    [string]$s,
+    [string]$t,
+    [string]$n,
+    [string]$p,
+    [string]$v,
+    [string]$b,
+    [string[]]$c,
+    [switch]$i,
+    [switch]$f,
+    [switch]$h,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$RemainingArguments
 )
@@ -118,6 +119,19 @@ if (-not (Test-Path -LiteralPath $CliFrameworkPath)) {
 }
 . $CliFrameworkPath
 $CliRouteAliases = @{ 'account set' = @('account', 'alias', 'set'); 'account rename' = @('account', 'alias', 'rename'); 'account remove' = @('account', 'alias', 'remove') }
+$Account = $a
+$Source = $s
+$Target = $t
+$Name = $n
+$NewName = $null
+$PresetPath = $p
+$VideoPath = $v
+$SourcePath = $null
+$ConfigPath = $null
+$Backup = $b
+$Sections = $c
+$IncludeCustomCfg = [bool]$i
+$Force = [bool]$f
 $CliLongValueOptions = @{
     account = 'Account'; source = 'Source'; target = 'Target'; name = 'Name'; newname = 'NewName'; 'new-name' = 'NewName'
     presetpath = 'PresetPath'; 'preset-path' = 'PresetPath'; videopath = 'VideoPath'; 'video-path' = 'VideoPath'
@@ -127,7 +141,10 @@ $CliLongValueOptions = @{
 $CliLongSwitchOptions = @{ includecustomcfg = 'IncludeCustomCfg'; 'include-custom-cfg' = 'IncludeCustomCfg'; force = 'Force'; whatif = 'WhatIf'; 'what-if' = 'WhatIf' }
 $rawCliTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
 $longOptionResult = Convert-CliLongOptions -Tokens $rawCliTokens -ValueOptions $CliLongValueOptions -SwitchOptions $CliLongSwitchOptions -MissingValueMessage { param($Option) "选项 '$Option' 需要提供值。" }
-foreach ($option in $longOptionResult.Values.GetEnumerator()) { Set-Variable -Name $option.Key -Value $option.Value }
+foreach ($option in $longOptionResult.Values.GetEnumerator()) {
+    if (Get-Variable -Name $option.Key -ValueOnly) { throw "选项 '$($option.Key)' 被重复提供。" }
+    Set-Variable -Name $option.Key -Value $option.Value
+}
 if ($longOptionResult.Switches.ContainsKey('IncludeCustomCfg')) { $IncludeCustomCfg = $true }
 if ($longOptionResult.Switches.ContainsKey('Force')) { $Force = $true }
 if ($longOptionResult.Switches.ContainsKey('WhatIf')) { $WhatIfPreference = $true }
@@ -637,7 +654,7 @@ function Invoke-PresetApply {
     Assert-Cs2Stopped
     $resolvedAccount = Resolve-Account -Identifier $Account
     if (-not $Sections -or $Sections.Count -eq 0) {
-        throw 'apply-preset 必须通过 -Sections 指定至少一个分类。'
+        throw 'apply-preset 必须通过 --sections 指定至少一个分类。'
     }
 
     $commands = Get-CommandsFromCfg -Path $PresetPath
@@ -663,7 +680,7 @@ function Invoke-PresetApply {
     if ($machineCommands.Count -gt 0) { $updates.Add((Get-VcfgUpdate -File $machineFile -Settings $machineCommands)) }
 
     if ($VideoPath) {
-        if ('Video' -notin $Sections) { Write-WarningMessage '已提供 -VideoPath，但未选择 Video 分类，视频文件将被忽略。' }
+        if ('Video' -notin $Sections) { Write-WarningMessage '已提供 --video-path，但未选择 Video 分类，视频文件将被忽略。' }
         else {
             $videoFile = Get-Item -LiteralPath (Join-Path $resolvedAccount.CfgPath 'cs2_video.txt')
             $updates.Add((Get-VideoConfigUpdate -TargetFile $videoFile -SourceFile $VideoPath))
@@ -711,18 +728,18 @@ function Get-PracticeSourcePath {
         }
         return $accountSource
     }
-    throw '请使用 -SourcePath，或同时使用 -Account 和 -ConfigPath 指定模板来源。'
+    throw '请使用 --source-path，或同时使用 --account 和 --config-path 指定模板来源。'
 }
 
 function Invoke-PracticeTemplateImport {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param([switch]$Update)
     Assert-Cs2Stopped
-    if (-not $Name) { throw 'practice template import/update 必须提供 -Name。' }
+    if (-not $Name) { throw 'practice template import/update 必须提供 --name。' }
     $templatePath = Get-TemplatePath -TemplateName $Name
     $sourceCfgPath = Get-PracticeSourcePath
     if ((Test-Path -LiteralPath $templatePath) -and -not $Update -and -not $Force) {
-        throw "模板已存在: $templatePath。使用 'practice template update' 更新，或加 -Force 覆盖。"
+        throw "模板已存在: $templatePath。使用 'practice template update' 更新，或加 --force 覆盖。"
     }
 
     if ($PSCmdlet.ShouldProcess($templatePath, "导入模板 $Name")) {
@@ -742,7 +759,7 @@ function Invoke-PracticeApply {
     param()
 
     Assert-Cs2Stopped
-    if (-not $Name) { throw 'practice apply 必须提供 -Name。' }
+    if (-not $Name) { throw 'practice apply 必须提供 --name。' }
     $templatePath = Get-TemplatePath -TemplateName $Name
     if (-not (Test-Path -LiteralPath $templatePath)) {
         throw "未找到模板: $templatePath。先使用 'practice template import' 导入。"
@@ -775,7 +792,7 @@ function Invoke-AccountRestore {
 
     Assert-Cs2Stopped
     $resolvedAccount = Resolve-Account -Identifier $Account
-    if (-not $Backup) { throw 'restore 必须提供 -Backup。先使用 backup list 查看可用备份。' }
+    if (-not $Backup) { throw 'restore 必须提供 --backup。先使用 backup list 查看可用备份。' }
     $backupDirectory = Get-ChildItem -LiteralPath $BackupsRoot -Directory -ErrorAction SilentlyContinue |
         Where-Object Name -eq $Backup | Select-Object -First 1
     if (-not $backupDirectory) { throw "未找到备份: $Backup" }
@@ -783,7 +800,7 @@ function Invoke-AccountRestore {
     $manifestPath = Join-Path $backupDirectory.FullName 'manifest.json'
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     if ($manifest.scope -notin @('account', 'preset')) {
-        throw "备份 '$Backup' 不是账号配置备份，不能通过 restore -Account 恢复。"
+        throw "备份 '$Backup' 不是账号配置备份，不能通过 restore --account 恢复。"
     }
     if ($manifest.label -ne $resolvedAccount.SteamId) {
         throw "备份 '$Backup' 不属于账号 $($resolvedAccount.SteamId)。"
@@ -852,6 +869,15 @@ CS2 配置管理工具
 帮助:
   $scriptName <命令> --help
   $scriptName help <命令> [子命令]
+
+常用参数:
+  -a, --account   账号
+  -s, --source    来源账号
+  -t, --target    目标账号
+  -n, --name      名称
+  -h, --help      显示帮助
+
+完整参数统一使用小写连字符，例如 --preset-path、--include-custom-cfg、--what-if。
 "@
         'account' = @"
 账号管理
@@ -883,9 +909,9 @@ CS2 配置管理工具
 
 用法:
   $scriptName account alias list
-  $scriptName account alias set -Account <别名或SteamId> -Name <新别名>
-  $scriptName account alias rename -Name <旧别名> -NewName <新别名>
-  $scriptName account alias remove -Name <别名>
+  $scriptName account alias set --account <别名或SteamId> --name <新别名>
+  $scriptName account alias rename --name <旧别名> --new-name <新别名>
+  $scriptName account alias remove --name <别名>
 "@
         'account alias list' = @"
 列出账号别名
@@ -897,47 +923,47 @@ CS2 配置管理工具
 设置账号别名
 
 用法:
-  $scriptName account alias set -Account <别名或SteamId> -Name <新别名>
-  $scriptName account set -Account <别名或SteamId> -Name <新别名>
+  $scriptName account alias set -a <别名或SteamId> -n <新别名>
+  $scriptName account set --account <别名或SteamId> --name <新别名>
 
 参数:
-  -Account 或 --Account   已检测到的账号别名或 Steam 数字 ID
-  -Name 或 --Name         要创建的别名，仅允许字母、数字、点、下划线和连字符
+  -a, --account   已检测到的账号别名或 Steam 数字 ID
+  -n, --name      要创建的别名，仅允许字母、数字、点、下划线和连字符
 "@
         'account alias rename' = @"
 重命名账号别名
 
 用法:
-  $scriptName account alias rename -Name <旧别名> -NewName <新别名>
+  $scriptName account alias rename --name <旧别名> --new-name <新别名>
 "@
         'account alias remove' = @"
 删除账号别名
 
 用法:
-  $scriptName account alias remove -Name <别名>
+  $scriptName account alias remove --name <别名>
 "@
         'backup' = @"
 备份账号配置
 
 用法:
-  $scriptName backup -Account <别名或SteamId> [-IncludeCustomCfg] [-WhatIf]
-  $scriptName backup list [-Account <别名或SteamId>]
+  $scriptName backup --account <别名或SteamId> [--include-custom-cfg] [--what-if]
+  $scriptName backup list [--account <别名或SteamId>]
 
 说明:
-  默认只备份通用 CS2 设置；-IncludeCustomCfg 额外包含自定义 cfg。
+  默认只备份通用 CS2 设置；--include-custom-cfg 额外包含自定义 cfg。
   trustedlaunch.cfg、Steam Cloud 状态和库存文件会被排除。
 "@
         'backup list' = @"
 列出配置备份
 
 用法:
-  $scriptName backup list [-Account <别名或SteamId>]
+  $scriptName backup list [--account <别名或SteamId>]
 "@
         'apply' = @"
 复制账号配置
 
 用法:
-  $scriptName apply -Source <来源别名或SteamId> -Target <目标别名或SteamId> [-IncludeCustomCfg] [-WhatIf]
+  $scriptName apply --source <来源别名或SteamId> --target <目标别名或SteamId> [--include-custom-cfg] [--what-if]
 
 目标账号会先自动备份；实际复制后会进行 SHA-256 校验。
 "@
@@ -945,7 +971,7 @@ CS2 配置管理工具
 应用 cfg 预设
 
 用法:
-  $scriptName apply-preset -Account <别名或SteamId> -PresetPath <cfg路径> -Sections <分类> [-VideoPath <视频配置路径>] [-WhatIf]
+  $scriptName apply-preset --account <别名或SteamId> --preset-path <cfg路径> --sections <分类> [--video-path <视频配置路径>] [--what-if]
 
 分类:
   Viewmodel、Video、Hud、Radar、Audio。可用逗号分隔多个分类。
@@ -954,7 +980,7 @@ CS2 配置管理工具
 恢复账号配置
 
 用法:
-  $scriptName restore -Account <别名或SteamId> -Backup <备份目录名> [-WhatIf]
+  $scriptName restore --account <别名或SteamId> --backup <备份目录名> [--what-if]
 
 先使用 backup list 查看备份目录名。恢复前会自动备份当前目标配置。
 "@
@@ -962,16 +988,16 @@ CS2 配置管理工具
 本地练习服配置
 
 用法:
-  $scriptName practice template <import|update> -Name <名称> (-SourcePath <路径> | -Account <账号> -ConfigPath <文件名>)
-  $scriptName practice apply -Name <名称> [-WhatIf]
+  $scriptName practice template <import|update> --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名>)
+  $scriptName practice apply --name <名称> [--what-if]
   $scriptName practice list
 "@
         'practice template' = @"
 管理练习服模板
 
 用法:
-  $scriptName practice template import -Name <名称> (-SourcePath <路径> | -Account <账号> -ConfigPath <文件名>)
-  $scriptName practice template update -Name <名称> (-SourcePath <路径> | -Account <账号> -ConfigPath <文件名>)
+  $scriptName practice template import --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名>)
+  $scriptName practice template update --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名>)
 
 import 仅创建新模板；update 覆盖已有模板。模板存放在脚本相对 .tmp\\templates 目录。
 "@
@@ -979,19 +1005,19 @@ import 仅创建新模板；update 覆盖已有模板。模板存放在脚本相
 导入练习服模板
 
 用法:
-  $scriptName practice template import -Name <名称> (-SourcePath <cfg路径> | -Account <别名或SteamId> -ConfigPath <文件名>)
+  $scriptName practice template import --name <名称> (--source-path <cfg路径> | --account <别名或SteamId> --config-path <文件名>)
 "@
         'practice template update' = @"
 更新练习服模板
 
 用法:
-  $scriptName practice template update -Name <名称> (-SourcePath <cfg路径> | -Account <别名或SteamId> -ConfigPath <文件名>)
+  $scriptName practice template update --name <名称> (--source-path <cfg路径> | --account <别名或SteamId> --config-path <文件名>)
 "@
         'practice apply' = @"
 部署练习服模板
 
 用法:
-  $scriptName practice apply -Name <名称> [-WhatIf]
+  $scriptName practice apply --name <名称> [--what-if]
 
 模板会复制到 CS2 游戏共享 cfg 目录；进入本地服务器后执行 exec <名称>。
 "@
@@ -1018,7 +1044,7 @@ function Throw-CliRouteError {
 
 try {
     $routeTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
-    $route = Resolve-CliRoute -Tokens $routeTokens -Aliases $CliRouteAliases -HelpRequested:$Help
+    $route = Resolve-CliRoute -Tokens $routeTokens -Aliases $CliRouteAliases -HelpRequested:$h
     if ($route.HelpRequested) {
         Show-ScriptHelp -Route $route
         return

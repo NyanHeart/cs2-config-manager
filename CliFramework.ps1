@@ -14,7 +14,7 @@ function Resolve-CliRoute {
         [switch]$HelpRequested
     )
 
-    $helpTokens = @('help', '--help', '-help', '-h', '/?')
+    $helpTokens = @('help', '--help', '-h')
     $path = [System.Collections.Generic.List[string]]::new()
     $isHelpRequested = [bool]$HelpRequested
     foreach ($token in $Tokens) {

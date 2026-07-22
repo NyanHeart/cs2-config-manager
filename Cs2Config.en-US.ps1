@@ -9,26 +9,32 @@
 
     Account settings live in the Steam userdata directory and can be addressed by alias or numeric Steam ID.
     Practice configurations live in the CS2 installation directory and are shared by all local accounts.
-    All write operations refuse to run while CS2 is running and support -WhatIf previews.
+    All write operations refuse to run while CS2 is running and support --what-if previews.
 
 .PARAMETER Command
     Optional top-level command: account, backup, apply, apply-preset, restore, or practice.
 
-.PARAMETER Account
-    An account alias or numeric Steam ID. Use account list to view available accounts.
+.PARAMETER a
+    An account alias or numeric Steam ID. The long form is --account.
 
-.PARAMETER Source
-    The source account alias or numeric Steam ID for apply.
+.PARAMETER s
+    The source account alias or numeric Steam ID for apply. The long form is --source.
 
-.PARAMETER Target
-    The target account alias or numeric Steam ID for apply.
+.PARAMETER t
+    The target account alias or numeric Steam ID for apply. The long form is --target.
 
-.PARAMETER Sections
-    Categories to merge with apply-preset: Viewmodel, Video, Hud, Radar, and Audio.
+.PARAMETER n
+    A practice template name or account alias name. The long form is --name.
+
+.PARAMETER p
+    External cfg preset path. The long form is --preset-path.
+
+.PARAMETER c
+    Categories to merge with apply-preset. The long form is --sections; values are Viewmodel, Video, Hud, Radar, and Audio.
     A comma-separated list is supported, for example Viewmodel,Hud,Radar.
 
-.PARAMETER Name
-    Practice template name without the .cfg extension. Run it in-game with exec <name>.
+.PARAMETER h
+    Shows command help. The long form is --help.
 
 .EXAMPLE
     Cs2Config.ps1 account list
@@ -36,48 +42,47 @@
     Lists Steam accounts with detected CS2 configurations on this computer.
 
 .EXAMPLE
-    Cs2Config.ps1 account alias set -Account 123456789 -Name primary
+    Cs2Config.ps1 account set -a 123456789 -n primary
 
     Sets an account alias. You can then use primary instead of a numeric Steam ID.
 
 .EXAMPLE
-    Cs2Config.ps1 backup -Account primary -IncludeCustomCfg
+    Cs2Config.ps1 backup --account primary --include-custom-cfg
 
     Backs up common account settings and custom .cfg files to the script-relative .tmp\backups directory.
     trustedlaunch.cfg, Steam Cloud state, and inventory files are excluded.
 
 .EXAMPLE
-    Cs2Config.ps1 apply -Source primary -Target secondary -WhatIf
+    Cs2Config.ps1 apply -s primary -t secondary --what-if
 
     Previews account configuration changes from primary to secondary without writing files.
 
 .EXAMPLE
-    Cs2Config.ps1 apply -Source primary -Target secondary
+    Cs2Config.ps1 apply -s primary -t secondary
 
     Copies common account settings. Target files are backed up first and verified with SHA-256 after copying.
 
 .EXAMPLE
-    Cs2Config.ps1 apply-preset -Account primary -PresetPath C:\Users\<your-user>\Downloads\autoexec.cfg -Sections Viewmodel,Hud,Radar,Audio -WhatIf
+    Cs2Config.ps1 apply-preset -a primary -p C:\Users\<your-user>\Downloads\autoexec.cfg -c Viewmodel,Hud,Radar,Audio --what-if
 
     Previews category-based settings extracted from an external cfg. Bindings, crosshair, sensitivity, and unselected categories remain unchanged.
 
 .EXAMPLE
-    Cs2Config.ps1 practice template import -Name practice -SourcePath C:\Users\<your-user>\Downloads\practice.cfg
-    Cs2Config.ps1 practice apply -Name practice
+    Cs2Config.ps1 practice template import -n practice --source-path C:\Users\<your-user>\Downloads\practice.cfg
+    Cs2Config.ps1 practice apply -n practice
 
     Imports a practice template and deploys it to the CS2 game directory. On a local server, run exec practice in the console.
 
 .EXAMPLE
-    Cs2Config.ps1 backup list -Account primary
-    Cs2Config.ps1 restore -Account primary -Backup <backup-directory-name> -WhatIf
+    Cs2Config.ps1 backup list -a primary
+    Cs2Config.ps1 restore -a primary -b <backup-directory-name> --what-if
 
     Lists account backups and previews restoration of a selected backup.
 
 .NOTES
     Supporting data is relative to the script: .tmp\Cs2Config.accounts.json, .tmp\templates, .tmp\backups, and .tmp\logs.
-    For commands that write settings, use -WhatIf first to review the scope.
+    For commands that write settings, use --what-if first to review the scope.
 #>
-[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
     [Parameter(Position = 0)]
     [string]$Command,
@@ -88,21 +93,17 @@ param(
     [Parameter(Position = 2)]
     [string]$Subaction,
 
-    [string]$Account,
-    [string]$Source,
-    [string]$Target,
-    [string]$Name,
-    [string]$NewName,
-    [string]$PresetPath,
-    [string]$VideoPath,
-    [string]$SourcePath,
-    [string]$ConfigPath,
-    [string]$Backup,
-    [string[]]$Sections,
-    [switch]$IncludeCustomCfg,
-    [switch]$Force,
-    [Alias('h', '?')]
-    [switch]$Help,
+    [string]$a,
+    [string]$s,
+    [string]$t,
+    [string]$n,
+    [string]$p,
+    [string]$v,
+    [string]$b,
+    [string[]]$c,
+    [switch]$i,
+    [switch]$f,
+    [switch]$h,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$RemainingArguments
 )
@@ -118,6 +119,19 @@ if (-not (Test-Path -LiteralPath $CliFrameworkPath)) {
 }
 . $CliFrameworkPath
 $CliRouteAliases = @{ 'account set' = @('account', 'alias', 'set'); 'account rename' = @('account', 'alias', 'rename'); 'account remove' = @('account', 'alias', 'remove') }
+$Account = $a
+$Source = $s
+$Target = $t
+$Name = $n
+$NewName = $null
+$PresetPath = $p
+$VideoPath = $v
+$SourcePath = $null
+$ConfigPath = $null
+$Backup = $b
+$Sections = $c
+$IncludeCustomCfg = [bool]$i
+$Force = [bool]$f
 $CliLongValueOptions = @{
     account = 'Account'; source = 'Source'; target = 'Target'; name = 'Name'; newname = 'NewName'; 'new-name' = 'NewName'
     presetpath = 'PresetPath'; 'preset-path' = 'PresetPath'; videopath = 'VideoPath'; 'video-path' = 'VideoPath'
@@ -127,7 +141,10 @@ $CliLongValueOptions = @{
 $CliLongSwitchOptions = @{ includecustomcfg = 'IncludeCustomCfg'; 'include-custom-cfg' = 'IncludeCustomCfg'; force = 'Force'; whatif = 'WhatIf'; 'what-if' = 'WhatIf' }
 $rawCliTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
 $longOptionResult = Convert-CliLongOptions -Tokens $rawCliTokens -ValueOptions $CliLongValueOptions -SwitchOptions $CliLongSwitchOptions
-foreach ($option in $longOptionResult.Values.GetEnumerator()) { Set-Variable -Name $option.Key -Value $option.Value }
+foreach ($option in $longOptionResult.Values.GetEnumerator()) {
+    if (Get-Variable -Name $option.Key -ValueOnly) { throw "Option '$($option.Key)' was provided more than once." }
+    Set-Variable -Name $option.Key -Value $option.Value
+}
 if ($longOptionResult.Switches.ContainsKey('IncludeCustomCfg')) { $IncludeCustomCfg = $true }
 if ($longOptionResult.Switches.ContainsKey('Force')) { $Force = $true }
 if ($longOptionResult.Switches.ContainsKey('WhatIf')) { $WhatIfPreference = $true }
@@ -637,7 +654,7 @@ function Invoke-PresetApply {
     Assert-Cs2Stopped
     $resolvedAccount = Resolve-Account -Identifier $Account
     if (-not $Sections -or $Sections.Count -eq 0) {
-        throw 'apply-preset requires at least one category through -Sections.'
+        throw 'apply-preset requires at least one category through --sections.'
     }
 
     $commands = Get-CommandsFromCfg -Path $PresetPath
@@ -663,7 +680,7 @@ function Invoke-PresetApply {
     if ($machineCommands.Count -gt 0) { $updates.Add((Get-VcfgUpdate -File $machineFile -Settings $machineCommands)) }
 
     if ($VideoPath) {
-        if ('Video' -notin $Sections) { Write-WarningMessage '-VideoPath was provided, but Video was not selected; the video file will be ignored.' }
+        if ('Video' -notin $Sections) { Write-WarningMessage '--video-path was provided, but Video was not selected; the video file will be ignored.' }
         else {
             $videoFile = Get-Item -LiteralPath (Join-Path $resolvedAccount.CfgPath 'cs2_video.txt')
             $updates.Add((Get-VideoConfigUpdate -TargetFile $videoFile -SourceFile $VideoPath))
@@ -711,18 +728,18 @@ function Get-PracticeSourcePath {
         }
         return $accountSource
     }
-    throw 'Use -SourcePath, or provide both -Account and -ConfigPath to choose a template source.'
+    throw 'Use --source-path, or provide both --account and --config-path to choose a template source.'
 }
 
 function Invoke-PracticeTemplateImport {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param([switch]$Update)
     Assert-Cs2Stopped
-    if (-not $Name) { throw 'practice template import/update requires -Name.' }
+    if (-not $Name) { throw 'practice template import/update requires --name.' }
     $templatePath = Get-TemplatePath -TemplateName $Name
     $sourceCfgPath = Get-PracticeSourcePath
     if ((Test-Path -LiteralPath $templatePath) -and -not $Update -and -not $Force) {
-        throw "Template already exists: $templatePath. Use 'practice template update' to update it, or use -Force to overwrite it."
+        throw "Template already exists: $templatePath. Use 'practice template update' to update it, or use --force to overwrite it."
     }
 
     if ($PSCmdlet.ShouldProcess($templatePath, "import template $Name")) {
@@ -742,7 +759,7 @@ function Invoke-PracticeApply {
     param()
 
     Assert-Cs2Stopped
-    if (-not $Name) { throw 'practice apply requires -Name.' }
+    if (-not $Name) { throw 'practice apply requires --name.' }
     $templatePath = Get-TemplatePath -TemplateName $Name
     if (-not (Test-Path -LiteralPath $templatePath)) {
         throw "Template was not found: $templatePath. First use 'practice template import' to import it."
@@ -775,7 +792,7 @@ function Invoke-AccountRestore {
 
     Assert-Cs2Stopped
     $resolvedAccount = Resolve-Account -Identifier $Account
-    if (-not $Backup) { throw 'restore requires -Backup. Use backup list to view available backups.' }
+    if (-not $Backup) { throw 'restore requires --backup. Use backup list to view available backups.' }
     $backupDirectory = Get-ChildItem -LiteralPath $BackupsRoot -Directory -ErrorAction SilentlyContinue |
         Where-Object Name -eq $Backup | Select-Object -First 1
     if (-not $backupDirectory) { throw "Backup was not found: $Backup" }
@@ -783,7 +800,7 @@ function Invoke-AccountRestore {
     $manifestPath = Join-Path $backupDirectory.FullName 'manifest.json'
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     if ($manifest.scope -notin @('account', 'preset')) {
-        throw "Backup '$Backup' is not an account configuration backup and cannot be restored with restore -Account."
+        throw "Backup '$Backup' is not an account configuration backup and cannot be restored with restore --account."
     }
     if ($manifest.label -ne $resolvedAccount.SteamId) {
         throw "Backup '$Backup' does not belong to account $($resolvedAccount.SteamId)。"
@@ -852,6 +869,15 @@ Commands:
 Help:
   $scriptName <command> --help
   $scriptName help <command> [subcommand]
+
+Common options:
+  -a, --account   Account
+  -s, --source    Source account
+  -t, --target    Target account
+  -n, --name      Name
+  -h, --help      Show help
+
+Long options use lowercase kebab-case, for example --preset-path, --include-custom-cfg, and --what-if.
 "@
         'account' = @"
 Account management
@@ -883,9 +909,9 @@ Account alias management
 
 Usage:
   $scriptName account alias list
-  $scriptName account alias set -Account <alias-or-SteamId> -Name <new-alias>
-  $scriptName account alias rename -Name <old-alias> -NewName <new-alias>
-  $scriptName account alias remove -Name <alias>
+  $scriptName account alias set --account <alias-or-SteamId> --name <new-alias>
+  $scriptName account alias rename --name <old-alias> --new-name <new-alias>
+  $scriptName account alias remove --name <alias>
 "@
         'account alias list' = @"
 List account aliases
@@ -897,46 +923,46 @@ Usage:
 Set an account alias
 
 Usage:
-  $scriptName account alias set -Account <alias-or-SteamId> -Name <new-alias>
-  $scriptName account set -Account <alias-or-SteamId> -Name <new-alias>
+  $scriptName account alias set -a <alias-or-SteamId> -n <new-alias>
+  $scriptName account set --account <alias-or-SteamId> --name <new-alias>
 
 Parameters:
-  -Account or --Account   A detected account alias or numeric Steam ID
-  -Name or --Name         Alias to create; only letters, numbers, periods, underscores, and hyphens are allowed
+  -a, --account   A detected account alias or numeric Steam ID
+  -n, --name      Alias to create; only letters, numbers, periods, underscores, and hyphens are allowed
 "@
         'account alias rename' = @"
 Rename an account alias
 
 Usage:
-  $scriptName account alias rename -Name <old-alias> -NewName <new-alias>
+  $scriptName account alias rename --name <old-alias> --new-name <new-alias>
 "@
         'account alias remove' = @"
 Remove an account alias
 
 Usage:
-  $scriptName account alias remove -Name <alias>
+  $scriptName account alias remove --name <alias>
 "@
         'backup' = @"
 Back up account configuration
 
 Usage:
-  $scriptName backup -Account <alias-or-SteamId> [-IncludeCustomCfg] [-WhatIf]
-  $scriptName backup list [-Account <alias-or-SteamId>]
+  $scriptName backup --account <alias-or-SteamId> [--include-custom-cfg] [--what-if]
+  $scriptName backup list [--account <alias-or-SteamId>]
 
-By default, only common CS2 settings are backed up. -IncludeCustomCfg also includes custom cfg files.
+By default, only common CS2 settings are backed up. --include-custom-cfg also includes custom cfg files.
 trustedlaunch.cfg, Steam Cloud state, and inventory files are excluded.
 "@
         'backup list' = @"
 List configuration backups
 
 Usage:
-  $scriptName backup list [-Account <alias-or-SteamId>]
+  $scriptName backup list [--account <alias-or-SteamId>]
 "@
         'apply' = @"
 Copy account configuration
 
 Usage:
-  $scriptName apply -Source <source-alias-or-SteamId> -Target <target-alias-or-SteamId> [-IncludeCustomCfg] [-WhatIf]
+  $scriptName apply --source <source-alias-or-SteamId> --target <target-alias-or-SteamId> [--include-custom-cfg] [--what-if]
 
 The target account is backed up first. Copied files are then verified with SHA-256.
 "@
@@ -944,7 +970,7 @@ The target account is backed up first. Copied files are then verified with SHA-2
 Apply a cfg preset
 
 Usage:
-  $scriptName apply-preset -Account <alias-or-SteamId> -PresetPath <cfg-path> -Sections <categories> [-VideoPath <video-config-path>] [-WhatIf]
+  $scriptName apply-preset --account <alias-or-SteamId> --preset-path <cfg-path> --sections <categories> [--video-path <video-config-path>] [--what-if]
 
 Categories:
   Viewmodel, Video, Hud, Radar, Audio. Separate multiple categories with commas.
@@ -953,7 +979,7 @@ Categories:
 Restore account configuration
 
 Usage:
-  $scriptName restore -Account <alias-or-SteamId> -Backup <backup-directory-name> [-WhatIf]
+  $scriptName restore --account <alias-or-SteamId> --backup <backup-directory-name> [--what-if]
 
 Use backup list to view backup directory names. The current target configuration is backed up before restoration.
 "@
@@ -961,16 +987,16 @@ Use backup list to view backup directory names. The current target configuration
 Local practice configuration
 
 Usage:
-  $scriptName practice template <import|update> -Name <name> (-SourcePath <path> | -Account <account> -ConfigPath <file-name>)
-  $scriptName practice apply -Name <name> [-WhatIf]
+  $scriptName practice template <import|update> --name <name> (--source-path <path> | --account <account> --config-path <file-name>)
+  $scriptName practice apply --name <name> [--what-if]
   $scriptName practice list
 "@
         'practice template' = @"
 Manage practice templates
 
 Usage:
-  $scriptName practice template import -Name <name> (-SourcePath <path> | -Account <account> -ConfigPath <file-name>)
-  $scriptName practice template update -Name <name> (-SourcePath <path> | -Account <account> -ConfigPath <file-name>)
+  $scriptName practice template import --name <name> (--source-path <path> | --account <account> --config-path <file-name>)
+  $scriptName practice template update --name <name> (--source-path <path> | --account <account> --config-path <file-name>)
 
 import creates a new template only. update overwrites an existing template. Templates are stored in the script-relative .tmp\\templates directory.
 "@
@@ -978,19 +1004,19 @@ import creates a new template only. update overwrites an existing template. Temp
 Import a practice template
 
 Usage:
-  $scriptName practice template import -Name <name> (-SourcePath <cfg-path> | -Account <alias-or-SteamId> -ConfigPath <file-name>)
+  $scriptName practice template import --name <name> (--source-path <cfg-path> | --account <alias-or-SteamId> --config-path <file-name>)
 "@
         'practice template update' = @"
 Update a practice template
 
 Usage:
-  $scriptName practice template update -Name <name> (-SourcePath <cfg-path> | -Account <alias-or-SteamId> -ConfigPath <file-name>)
+  $scriptName practice template update --name <name> (--source-path <cfg-path> | --account <alias-or-SteamId> --config-path <file-name>)
 "@
         'practice apply' = @"
 Deploy a practice template
 
 Usage:
-  $scriptName practice apply -Name <name> [-WhatIf]
+  $scriptName practice apply --name <name> [--what-if]
 
 The template is copied to the shared CS2 game cfg directory. On a local server, run exec <name>.
 "@
@@ -1017,7 +1043,7 @@ function Throw-CliRouteError {
 
 try {
     $routeTokens = @($Command, $Action, $Subaction) + @($RemainingArguments)
-    $route = Resolve-CliRoute -Tokens $routeTokens -Aliases $CliRouteAliases -HelpRequested:$Help
+    $route = Resolve-CliRoute -Tokens $routeTokens -Aliases $CliRouteAliases -HelpRequested:$h
     if ($route.HelpRequested) {
         Show-ScriptHelp -Route $route
         return
