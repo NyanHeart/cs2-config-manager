@@ -722,11 +722,17 @@ function Get-PracticeSourcePath {
     }
     if ($Account -and $ConfigPath) {
         $resolvedAccount = Resolve-Account -Identifier $Account
-        $accountSource = Join-Path $resolvedAccount.CfgPath $ConfigPath
-        if (-not (Test-Path -LiteralPath $accountSource)) {
-            throw "账号配置中未找到来源文件: $accountSource"
+        $configNames = @($ConfigPath)
+        if (-not [System.IO.Path]::GetExtension($ConfigPath)) {
+            $configNames += "$ConfigPath.cfg"
         }
-        return $accountSource
+        foreach ($configName in $configNames) {
+            $accountSource = Join-Path $resolvedAccount.CfgPath $configName
+            if (Test-Path -LiteralPath $accountSource) {
+                return $accountSource
+            }
+        }
+        throw "账号配置中未找到来源文件: $(Join-Path $resolvedAccount.CfgPath $ConfigPath)"
     }
     throw '请使用 --source-path，或同时使用 --account 和 --config-path 指定模板来源。'
 }
@@ -988,7 +994,7 @@ CS2 配置管理工具
 本地练习服配置
 
 用法:
-  $scriptName practice template <import|update> --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名>)
+  $scriptName practice template <import|update> --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名[.cfg]>)
   $scriptName practice apply --name <名称> [--what-if]
   $scriptName practice list
 "@
@@ -996,22 +1002,22 @@ CS2 配置管理工具
 管理练习服模板
 
 用法:
-  $scriptName practice template import --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名>)
-  $scriptName practice template update --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名>)
+  $scriptName practice template import --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名[.cfg]>)
+  $scriptName practice template update --name <名称> (--source-path <路径> | --account <账号> --config-path <文件名[.cfg]>)
 
-import 仅创建新模板；update 覆盖已有模板。模板存放在脚本相对 .tmp\\templates 目录。
+import 仅创建新模板；update 覆盖已有模板。模板存放在脚本相对 .tmp\\templates 目录。使用 --config-path 时可省略 .cfg。
 "@
         'practice template import' = @"
 导入练习服模板
 
 用法:
-  $scriptName practice template import --name <名称> (--source-path <cfg路径> | --account <别名或SteamId> --config-path <文件名>)
+  $scriptName practice template import --name <名称> (--source-path <cfg路径> | --account <别名或SteamId> --config-path <文件名[.cfg]>)
 "@
         'practice template update' = @"
 更新练习服模板
 
 用法:
-  $scriptName practice template update --name <名称> (--source-path <cfg路径> | --account <别名或SteamId> --config-path <文件名>)
+  $scriptName practice template update --name <名称> (--source-path <cfg路径> | --account <别名或SteamId> --config-path <文件名[.cfg]>)
 "@
         'practice apply' = @"
 部署练习服模板

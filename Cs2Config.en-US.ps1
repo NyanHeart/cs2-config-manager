@@ -722,11 +722,17 @@ function Get-PracticeSourcePath {
     }
     if ($Account -and $ConfigPath) {
         $resolvedAccount = Resolve-Account -Identifier $Account
-        $accountSource = Join-Path $resolvedAccount.CfgPath $ConfigPath
-        if (-not (Test-Path -LiteralPath $accountSource)) {
-            throw "Source file was not found in the account configuration: $accountSource"
+        $configNames = @($ConfigPath)
+        if (-not [System.IO.Path]::GetExtension($ConfigPath)) {
+            $configNames += "$ConfigPath.cfg"
         }
-        return $accountSource
+        foreach ($configName in $configNames) {
+            $accountSource = Join-Path $resolvedAccount.CfgPath $configName
+            if (Test-Path -LiteralPath $accountSource) {
+                return $accountSource
+            }
+        }
+        throw "Source file was not found in the account configuration: $(Join-Path $resolvedAccount.CfgPath $ConfigPath)"
     }
     throw 'Use --source-path, or provide both --account and --config-path to choose a template source.'
 }
@@ -987,7 +993,7 @@ Use backup list to view backup directory names. The current target configuration
 Local practice configuration
 
 Usage:
-  $scriptName practice template <import|update> --name <name> (--source-path <path> | --account <account> --config-path <file-name>)
+  $scriptName practice template <import|update> --name <name> (--source-path <path> | --account <account> --config-path <file-name[.cfg]>)
   $scriptName practice apply --name <name> [--what-if]
   $scriptName practice list
 "@
@@ -995,22 +1001,22 @@ Usage:
 Manage practice templates
 
 Usage:
-  $scriptName practice template import --name <name> (--source-path <path> | --account <account> --config-path <file-name>)
-  $scriptName practice template update --name <name> (--source-path <path> | --account <account> --config-path <file-name>)
+  $scriptName practice template import --name <name> (--source-path <path> | --account <account> --config-path <file-name[.cfg]>)
+  $scriptName practice template update --name <name> (--source-path <path> | --account <account> --config-path <file-name[.cfg]>)
 
-import creates a new template only. update overwrites an existing template. Templates are stored in the script-relative .tmp\\templates directory.
+import creates a new template only. update overwrites an existing template. Templates are stored in the script-relative .tmp\\templates directory. The .cfg extension is optional with --config-path.
 "@
         'practice template import' = @"
 Import a practice template
 
 Usage:
-  $scriptName practice template import --name <name> (--source-path <cfg-path> | --account <alias-or-SteamId> --config-path <file-name>)
+  $scriptName practice template import --name <name> (--source-path <cfg-path> | --account <alias-or-SteamId> --config-path <file-name[.cfg]>)
 "@
         'practice template update' = @"
 Update a practice template
 
 Usage:
-  $scriptName practice template update --name <name> (--source-path <cfg-path> | --account <alias-or-SteamId> --config-path <file-name>)
+  $scriptName practice template update --name <name> (--source-path <cfg-path> | --account <alias-or-SteamId> --config-path <file-name[.cfg]>)
 "@
         'practice apply' = @"
 Deploy a practice template

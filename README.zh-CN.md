@@ -108,6 +108,8 @@ Cs2Config.zh-CN.ps1 `
 exec practice
 ```
 
+从账号配置导入模板时，`--config-path practice` 也会匹配 `practice.cfg`；显式提供的扩展名会保持原样。
+
 ## 安全说明
 
 所有会写入配置的命令都会拒绝在 `cs2.exe` 运行时执行。写入前会在 `.tmp\backups` 创建带 `manifest.json` 和 SHA-256 的备份；操作摘要写入 `.tmp\logs`。

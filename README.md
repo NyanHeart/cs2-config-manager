@@ -108,6 +108,8 @@ On a local server, open the CS2 console and run:
 exec practice
 ```
 
+When importing a template from an account configuration, `--config-path practice` also matches `practice.cfg`; an explicitly supplied extension is preserved.
+
 ## Safety
 
 Commands that write settings refuse to run while `cs2.exe` is active. Before writing, the script creates a backup with `manifest.json` and SHA-256 hashes in `.tmp\backups`; operation summaries go to `.tmp\logs`.
